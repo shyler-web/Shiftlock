@@ -1,0 +1,2198 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#171812">
+    <title>Shiftlock - The Permutation Vault</title>
+
+    <style>
+
+        /* Native, offline game interface. */
+        :root {
+            color-scheme: light dark;
+            --page: #f1f3f4;
+            --surface: #fafbfc;
+            --well: #e5e9eb;
+            --text: #20282c;
+            --muted: #58656d;
+            --line: #cbd3d8;
+            --accent: #176e62;
+            --accent-soft: #d9eae5;
+            --on-accent: #f7fcfa;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --page: #161c20;
+                --surface: #20282d;
+                --well: #10171b;
+                --text: #e9eff1;
+                --muted: #a8b6be;
+                --line: #3a4850;
+                --accent: #9ed5c6;
+                --accent-soft: #304c44;
+                --on-accent: #142d25;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100dvh;
+            background: var(--page);
+            color: var(--text);
+            font: 15px/1.55 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+        }
+        button { font: inherit; touch-action: manipulation; cursor: pointer; }
+        button:focus-visible, [tabindex]:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 4px;
+        }
+        .app { max-width: 1280px; margin: auto; padding: 28px 36px; }
+        .app-header {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 24px; margin-bottom: 28px; padding-bottom: 24px;
+            border-bottom: 1px solid var(--line);
+        }
+        h1 { margin: 0; font-size: 38px; line-height: 1.1; letter-spacing: -.055em; font-weight: 750; }
+        .subtitle { margin: 10px 0 0; color: var(--muted); max-width: 58ch; }
+        .brand-kicker, .kicker { display: none; }
+        .section-label { font-size: 13px; font-weight: 650; color: var(--muted); margin-bottom: 8px; }
+        .side-panel > div:first-child > .section-label { display: none; }
+        .header-actions, .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .button {
+            min-height: 46px; padding: 11px 16px; border-radius: 12px;
+            border: 1px solid var(--line); background: var(--surface); color: var(--text);
+            font-weight: 650; white-space: nowrap;
+            transition: background 160ms, transform 160ms, border-color 160ms;
+        }
+        .button:hover { background: var(--well); border-color: var(--muted); }
+        .button:active { transform: scale(.97); }
+        .button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+        .button.danger { background: transparent; color: var(--text); }
+        .game-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+        .panel { min-width: 0; }
+        .vault-panel, .board-panel { border: 1px solid var(--line); background: var(--surface); border-radius: 20px; overflow: hidden; }
+        .side-panel { display: grid; gap: 24px; padding: 8px 0; }
+        h2 { font-size: 22px; line-height: 1.25; letter-spacing: -.035em; margin: 0 0 10px; font-weight: 650; }
+        p { margin: 0; color: var(--muted); }
+        .message { min-height: 66px; padding: 16px; background: var(--accent-soft); border-radius: 12px; color: var(--text); }
+        .message.success { border-left: 4px solid var(--accent); }
+        .message.error, .message.warning { border-left: 4px solid #bc674c; }
+        .math-card, .theorem-card { border-radius: 12px; padding: 20px; background: var(--well); color: var(--text); margin-top: 12px; }
+        .formula { font-size: 20px; font-weight: 650; margin: 12px 0; }
+        .spoiler-button { width: 100%; text-align: left; }
+        .spoiler-button::after { content: '+'; float: right; margin-left: 12px; }
+        .spoiler-button[aria-expanded='true']::after { content: '−'; }
+        .spoiler-note { display: block; color: var(--muted); font-size: 12px; margin-top: 6px; }
+        [hidden] { display: none !important; }
+        .modal-backdrop { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; padding: 16px; background: #102028b8; backdrop-filter: blur(8px); }
+        .modal-backdrop.open { display: grid; }
+        .modal { width: min(640px, 100%); max-height: 88dvh; overflow: auto; padding: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+        .modal-backdrop.open .modal { animation: enter 220ms ease-out; }
+        .modal-header { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+        .rules-list { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 20px; }
+        .rules-list li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; }
+        .rule-number { background: var(--accent-soft); border-radius: 10px; height: 30px; display: grid; place-items: center; color: var(--text); }
+        @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 1000px) {
+            .app { padding: 24px; }
+            .game-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 24px; }
+            .app-header { align-items: start; }
+        }
+        @media (max-width: 768px) {
+            .app { padding: 16px; }
+            .app-header { flex-wrap: wrap; gap: 16px; margin-bottom: 18px; padding-bottom: 18px; }
+            h1 { font-size: 32px; }
+            .subtitle { font-size: 14px; }
+            .game-layout { grid-template-columns: 1fr; gap: 20px; }
+            .side-panel { gap: 18px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+        }
+
+        .status-strip { display: grid; grid-template-columns: repeat(4, 1fr); padding: 18px 22px; gap: 14px; }
+        .metric span { display: block; color: var(--muted); font-size: 12px; }
+        .metric strong { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .vault-wrap { padding: 24px 20px 18px; background: var(--well); }
+        .vault-controls { max-width: 560px; margin: auto; }
+        .column-controls { display: grid; gap: 8px; padding: 0 54px; }
+        .column-controls.top { margin-bottom: 8px; }
+        .column-controls.bottom { margin-top: 8px; }
+        .board-band { display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px; gap: 8px; }
+        .row-controls { display: grid; gap: 8px; }
+        .shift-control { min-height: 44px; min-width: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); color: var(--text); border-radius: 12px; font-size: 22px; transition: background 140ms, transform 140ms; }
+        .shift-control:hover { background: var(--accent-soft); }
+        .shift-control:active { transform: scale(.92); background: var(--accent); color: var(--on-accent); }
+        .board { display: grid; position: relative; gap: 8px; padding: 8px; aspect-ratio: 1; overflow: hidden; background: var(--line); border-radius: 16px; touch-action: none; user-select: none; }
+        .tile { position: relative; min-width: 0; display: grid; place-items: center; background: var(--surface); color: var(--text); border-radius: 10px; box-shadow: 0 2px 1px #18313b18; }
+        .tile.correct { background: var(--accent); color: var(--on-accent); }
+        .tile-value { font-size: clamp(22px, 3vw, 40px); font-weight: 550; font-variant-numeric: tabular-nums; letter-spacing: -.05em; }
+        .tile-index { position: absolute; right: 7px; bottom: 4px; font-size: 10px; opacity: .65; }
+        .gesture-hint { margin-top: 18px; text-align: center; font-size: 12px; }
+        .level-list { display: grid; gap: 6px; }
+        .level-button { width: 100%; min-height: 54px; display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--text); text-align: left; }
+        .level-button:hover { background: var(--well); }
+        .level-button.active { border-color: var(--line); background: var(--surface); }
+        .level-button small { color: var(--muted); }
+        @media (max-width: 480px) {
+            .vault-wrap { padding: 16px 6px; }
+            .board-band { grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 3px; }
+            .column-controls { padding: 0 47px; gap: 3px; }
+            .board, .row-controls { gap: 4px; }
+            .board { padding: 4px; }
+            .status-strip { padding: 14px; gap: 8px; }
+            .metric strong { font-size: 17px; }
+            .tile-value { font-size: 23px; }
+        }
+        /* Color is part of the puzzle: each tile keeps its home-row family. */
+        :root {
+            color-scheme: dark;
+            --page: #111a30;
+            --surface: #1c2943;
+            --well: #0e182c;
+            --text: #edf3ff;
+            --muted: #aebed8;
+            --line: #354765;
+            --accent: #f2bb65;
+            --accent-soft: #34364a;
+            --on-accent: #262033;
+        }
+        body { background: radial-gradient(ellipse at 12% 0%, #263c5b 0, transparent 60%), var(--page); }
+        .app-header { border-bottom-color: #354765; }
+        h1 { color: #f5c77c; letter-spacing: -.045em; }
+        .vault-panel { box-shadow: 0 22px 65px #060c1d55; border-color: #415779; }
+        .status-strip { background: #21304b; }
+        .metric strong { color: #f4cf90; }
+        .vault-wrap { background: radial-gradient(ellipse at center, #253958, #111d34 85%); padding-top: 28px; padding-bottom: 24px; }
+        .board { background: #091225; border: 1px solid #4a6283; box-shadow: inset 0 2px 12px #050b17, 0 10px 24px #080e2355; }
+        .tile {
+            color: #fff8ee;
+            border: 1px solid #ffffff38;
+            box-shadow: inset 0 1px 0 #ffffff42, inset 0 -4px 0 #0a162635, 0 3px 5px #04091755;
+        }
+        .tile[data-family='0'] { background: linear-gradient(145deg, #b75b51, #884239); }
+        .tile[data-family='1'] { background: linear-gradient(145deg, #397c89, #285964); }
+        .tile[data-family='2'] { background: linear-gradient(145deg, #946d34, #725026); }
+        .tile[data-family='3'] { background: linear-gradient(145deg, #726395, #50476e); }
+        .tile.correct { border-color: #ffe1a0; box-shadow: inset 0 0 0 2px #ffe1a0, inset 0 -4px 0 #0a162635; }
+        .tile.correct::after { content: ''; position: absolute; bottom: 8px; width: 13px; height: 3px; border-radius: 2px; background: #ffe1a0; }
+        .tile-value { text-shadow: 0 2px 2px #10162b40; }
+        .shift-control { background: #283c5b; color: #f6cc88; border-color: #456080; box-shadow: inset 0 1px 0 #ffffff10; }
+        .shift-control:hover { background: #395374; }
+        .shift-control:active { background: #f2bb65; color: #182238; }
+        .level-button.active { background: #293851; border-color: #bd955c; }
+        .message { background: #243650; border: 1px solid #3d5270; }
+        .gesture-hint { color: #b7c6dc; }
+        .button.primary { box-shadow: inset 0 1px 0 #fff1ce; }
+
+        /* Board first, secondary content in a drawer. */
+        body { background: #111a30; }
+        .app { max-width: 1120px; padding: 0 32px 28px; }
+        .app-header { min-height: 80px; margin: 0; padding: 16px 0; border: 0; }
+        .app-header h1 { font-size: 24px; font-weight: 800; letter-spacing: -.065em; color: var(--text); }
+        .app-header .subtitle { display: none; }
+        .header-actions { align-items: center; }
+        .header-actions .button { min-height: 40px; border: 0; background: transparent; padding: 8px 12px; font-size: 13px; font-weight: 550; color: var(--muted); box-shadow: none; }
+        .header-actions .button:hover { color: var(--text); background: #ffffff08; }
+        .game-layout { display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .panel.vault-panel, .panel.board-panel { width: 100%; border: 0; border-radius: 0; box-shadow: none; background: transparent; overflow: visible; }
+        .play-heading { width: 100%; text-align: center; margin: 10px 0 20px; }
+        .play-heading .section-label { display: none; }
+        .play-heading h2 { font-size: 26px; font-weight: 600; letter-spacing: -.04em; margin: 0; }
+        .play-heading p { font-size: 13px; margin-top: 5px; }
+        .play-dock { width: 100%; max-width: 690px; margin: 20px auto 0; }
+        .play-dock .button-row { justify-content: center; gap: 10px; }
+        .play-dock .button { border-color: #526079; background: transparent; border-radius: 8px; box-shadow: none; font-weight: 550; min-height: 44px; padding: 9px 22px; }
+        .play-dock .button.primary { background: #e6b36b; border-color: #e6b36b; color: #192237; }
+        .play-dock .message { padding: 12px 8px; min-height: 54px; border: 0; background: transparent; border-radius: 0; text-align: center; font-size: 13px; color: var(--muted); }
+        .play-dock .message.success { color: #f1cf95; }
+        .play-dock .message.warning, .play-dock .message.error { color: #f3b19e; }
+        .demo-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .demo-controls .button { min-height: 38px; padding: 7px 12px; font-size: 13px; }
+        .demo-controls .size-button[aria-pressed='true'] { background: #e6b36b; color: #192237; border-color: #e6b36b; }
+        .demo-controls .demo-label { color: var(--muted); font-size: 12px; margin-right: 4px; }
+        .button:disabled, .shift-control:disabled { opacity: .45; cursor: wait; }
+        .collection-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(420px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; padding: 28px; border: 0; border-left: 1px solid var(--line); background: var(--page); color: var(--text); overflow-y: auto; }
+        .collection-dialog::backdrop { background: #080e20b0; backdrop-filter: blur(6px); }
+        .collection-dialog[open] { animation: drawer-enter 240ms cubic-bezier(.2,.8,.2,1); }
+        .collection-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
+        .collection-header h2 { margin: 0; font-size: 23px; }
+        .collection-dialog .section-label { font-size: 14px; letter-spacing: 0; margin: 20px 0 12px; }
+        .collection-dialog .discovery { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 20px; }
+        .collection-dialog .level-button { padding: 16px 12px; min-height: 70px; }
+        .collection-dialog .level-button strong { font-weight: 550; }
+        .collection-dialog .spoiler-button { white-space: normal; }
+        @keyframes drawer-enter { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .vault-panel { max-width: 570px; }
+        .status-strip { grid-template-columns: repeat(3, 1fr); background: transparent; padding: 0 46px 18px; text-align: center; }
+        .metric:first-child { display: none; }
+        .metric span { font-size: 11px; color: #93a6c3; }
+        .metric strong { font-size: 24px; color: #e8eff8; font-weight: 450; }
+        .vault-wrap { padding: 0; background: transparent; }
+        .vault-controls { max-width: 550px; }
+        .board { padding: 10px; gap: 9px; border: 1px solid #415574; border-radius: 12px; background: #0a1223; box-shadow: 0 18px 40px #070d204d; }
+        .tile { border-radius: 6px; border-width: 1px; box-shadow: inset 0 1px 0 #ffffff22, inset 0 -3px 0 #0a162638; }
+        .tile-value { font-size: clamp(26px, 4vw, 42px); font-weight: 500; }
+        .tile.correct { box-shadow: inset 0 0 0 1px #f2cf8b, inset 0 -3px 0 #0a162638; border-color: #f2cf8b; }
+        .shift-control { border: 0; box-shadow: none; background: transparent; color: #9fb3d0; border-radius: 6px; font-size: 24px; }
+        .shift-control:hover { background: #293b57; color: #f5cb8c; }
+        .gesture-hint { font-size: 12px; color: #8fa4c1; margin-top: 16px; }
+        
+        @media (max-width: 768px) {
+            .app { padding: 0 16px 20px; }
+            .app-header { min-height: 70px; gap: 8px; flex-wrap: nowrap; }
+            .header-actions { gap: 0; }
+            .header-actions .button { padding: 8px; font-size: 12px; }
+            .app-header h1 { font-size: 22px; }
+            .play-heading { margin: 8px 0 18px; }
+            .play-heading h2 { font-size: 23px; }
+            .play-dock .button { padding: 10px 16px; }
+            .vault-panel { max-width: 500px; } .status-strip { padding: 0 36px 16px; }
+        }
+        @media (max-width: 480px) {
+            .board { padding: 6px; gap: 5px; } .vault-wrap { padding: 0; } .tile-value { font-size: 26px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .collection-dialog[open] { animation: none; } }
+
+        /* Warm paper, ink and enamel tiles. */
+        :root { color-scheme: light; --page: #f1eee6; --surface: #fffdf8; --well: #e6e1d5; --text: #21343c; --muted: #596a6f; --line: #c6c8be; --accent: #a94f35; --accent-soft: #f3e2d5; --on-accent: #fffdf8; }
+        body { background-color: var(--page); background-image: radial-gradient(#cdd0c7 0.75px, transparent 0.75px), linear-gradient(135deg, #faf8f1, #eae8df); background-size: 24px 24px, auto; }
+        .app { max-width: 1180px; }
+        .app-header { border-bottom: 1px solid #c9c9bd; margin-bottom: 20px; }
+        .brand-lockup { display: flex; align-items: center; gap: 12px; }
+        .brand-mark { width: 43px; height: 43px; display: grid; place-items: center; flex: none; color: #f5e6ca; background: #203640; border-radius: 11px; box-shadow: 3px 3px 0 #c9cabe; transform: rotate(-4deg); }
+        .brand-mark svg { width: 31px; height: 31px; transform: rotate(4deg); }
+        .app-header h1 { color: #203640; font-size: 26px; letter-spacing: -.06em; }
+        .header-actions .button { color: #405961; font-weight: 650; }
+        .header-actions .button:hover { color: #203640; background: #dddcd2; }
+        .play-heading { margin: 6px 0 24px; }
+        .play-heading h2 { color: #203640; font-size: 31px; font-weight: 750; }
+        .play-heading p { color: #5d6e72; font-size: 14px; }
+        .metric span { color: #5d6c6e; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .metric strong { color: #203640; font-size: 25px; font-weight: 700; }
+        .board { border: 7px solid #203640; border-radius: 18px; background: #203640; box-shadow: 0 8px 0 #9da9a0, 0 22px 42px #263d4230; padding: 7px; gap: 7px; }
+        .tile, .tile[data-family='0'], .tile[data-family='1'], .tile[data-family='2'], .tile[data-family='3'] { background: #fbf7ed; color: #203640; border: 1px solid #d7d5ca; box-shadow: inset 0 1px 0 #fff, 0 3px 0 #bec3bb; border-radius: 8px; }
+        .tile::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 7px; border-radius: 7px 7px 0 0; background: #a94f35; }
+        .tile[data-family='1']::before { background: #3b8291; }
+        .tile[data-family='2']::before { background: #bb8a38; }
+        .tile[data-family='3']::before { background: #786695; }
+        .tile-value { color: #203640; font-weight: 760; text-shadow: none; }
+        .tile.correct { border: 2px solid #2f866e; box-shadow: inset 0 0 0 2px #c5e0d1, 0 3px 0 #a6bfb0; }
+        .tile.correct::after { background: #2f866e; }
+        .shift-control { color: #47616c; background: #e6e8de; border: 1px solid #bec7bc; border-radius: 8px; font-weight: 750; }
+        .shift-control:hover { background: #d4e1dc; color: #203640; }
+        .shift-control:active { color: white; background: #203640; }
+        .gesture-hint { color: #617176; }
+        .play-dock { max-width: 740px; }
+        .play-dock .button, .demo-controls .button { background: #fffdf8; color: #203640; border: 1px solid #b9c0b8; border-radius: 9px; box-shadow: 0 2px 0 #c5c9be; font-weight: 650; }
+        .play-dock .button:hover, .demo-controls .button:hover { background: #f2eee4; }
+        .play-dock .button.primary, .demo-controls .size-button[aria-pressed='true'] { color: #fffdf8; background: #203640; border-color: #203640; box-shadow: 0 2px 0 #82958f; }
+        .play-dock .message { color: #596a6f; }
+        .play-dock .message.success { color: #236b56; }
+        .play-dock .message.error, .play-dock .message.warning { color: #a94f35; }
+        .demo-controls .demo-label { color: #53666b; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
+        .playback-panel { margin: 17px auto 4px; padding: 16px 18px 14px; max-width: 660px; background: #fffdf8; border: 1px solid #c5c8bb; border-radius: 12px; box-shadow: 0 3px 0 #d0d2c6; }
+        .playback-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 13px; }
+        .playback-top > div:first-child { display: flex; flex-direction: column; line-height: 1.25; }
+        .playback-top strong { font-size: 17px; }
+        .playback-kicker { color: #a94f35; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+        .speed-control { display: flex; padding: 3px; gap: 2px; background: #e9e8df; border-radius: 9px; }
+        .speed-button { min-height: 32px; padding: 4px 11px; border: 0; border-radius: 7px; background: transparent; color: #50646b; font-size: 12px; font-weight: 700; }
+        .speed-button[aria-pressed='true'] { color: #fff; background: #203640; }
+        .timeline-controls { display: grid; grid-template-columns: 33px minmax(0,1fr) 33px 48px; align-items: center; gap: 10px; }
+        .timeline-step { width: 33px; height: 33px; padding: 0; border-radius: 8px; border: 1px solid #b9c0b8; background: #f6f4ec; color: #203640; font-size: 18px; }
+        .timeline-step:disabled { opacity: .4; cursor: default; }
+        #solveTimeline { width: 100%; accent-color: #a94f35; cursor: pointer; }
+        #solveTimeline:disabled { opacity: .35; cursor: default; }
+        #timelineCount { color: #41545a; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+        #timelineDescription { color: #5a6a70; font-size: 12px; margin-top: 8px; min-height: 19px; }
+        .collection-dialog, .modal { background: #f8f6ee; }
+        .level-button.active { background: #e6e8dd; border-color: #aeb9b0; }
+        .math-card { background: #e9e6db; }
+        .message { background: #ece9df; border-color: #d0d2c7; }
+        @media (max-width: 480px) { .app-header h1 { font-size: 22px; } .brand-mark { width: 36px; height: 36px; } .playback-panel { padding: 13px; } .demo-controls { gap: 5px; } .demo-controls .button { padding: 7px 9px; } }
+    </style>
+    <style id="shiftlock-gamify-style">
+        /* ===== Gamification add-on (additive only; nothing above is modified) ===== */
+
+        /* Sound settings: one small corner button that opens a Music / Effects / Voice menu. */
+        .sl-audio { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 25; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+        .sl-audio-main { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; background: #fffdf8; color: #203640; border: 1px solid #b9c0b8; border-radius: 9px; box-shadow: 0 2px 0 #c5c9be; transition: background 140ms, transform 140ms; }
+        .sl-audio-main:hover { background: #f2eee4; }
+        .sl-audio-main:active { transform: scale(.94); }
+        .sl-audio-main svg { width: 22px; height: 22px; display: block; }
+        .sl-audio-panel { display: none; flex-direction: column; gap: 2px; padding: 6px; min-width: 230px; background: #fffdf8; border: 1px solid #b9c0b8; border-radius: 12px; box-shadow: 0 2px 0 #c5c9be, 0 12px 28px #263d4226; }
+        .sl-audio.open .sl-audio-panel { display: flex; animation: sl-menu .18s ease-out; }
+        .sl-audio-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 12px; background: transparent; color: #203640; border: 0; border-radius: 8px; font-size: 14px; font-weight: 650; text-align: left; white-space: nowrap; }
+        .sl-audio-btn:hover { background: #f2eee4; }
+        .sl-audio-btn svg { width: 20px; height: 20px; flex: none; }
+        .sl-audio-btn::after { content: 'On'; display: inline-block; margin-left: auto; padding-left: 16px; font-size: 12px; font-weight: 800; color: #2f866e; }
+        .sl-audio-btn[aria-pressed='false'] { color: #8a979a; text-decoration: line-through; }
+        .sl-audio-btn[aria-pressed='false']::after { content: 'Off'; color: #a94f35; }
+        .sl-voice-label { margin: 6px 12px 2px; font-size: 12px; font-weight: 700; color: #596a6f; }
+        .sl-voice-pick { margin: 2px 6px 6px; padding: 8px 6px; max-width: 230px; background: #fffdf8; color: #203640; border: 1px solid #b9c0b8; border-radius: 8px; font: inherit; font-size: 13px; }
+        @keyframes sl-menu { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @media (max-width: 480px) { .sl-audio-main { width: 40px; height: 40px; } }
+
+        /* Win celebration. */
+        .sl-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 39; }
+        .sl-win { position: fixed; left: 0; right: 0; top: 11vh; z-index: 40; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
+        .sl-win-card { background: #fffdf8; color: #203640; border: 3px solid #203640; border-radius: 18px; box-shadow: 0 8px 0 #9da9a0, 0 22px 42px #263d4230; padding: 16px 34px 20px; text-align: center; max-width: 440px; animation: sl-pop .6s cubic-bezier(.2, 1.4, .3, 1) both; }
+        .sl-win.leaving .sl-win-card { animation: sl-out .35s ease-in both; }
+        .sl-win-kicker { color: #a94f35; font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+        .sl-win-title { font-size: 32px; font-weight: 800; letter-spacing: -.045em; line-height: 1.15; margin: 4px 0 2px; }
+        .sl-stars { display: flex; justify-content: center; gap: 8px; margin: 6px 0 8px; }
+        .sl-star { font-size: 42px; line-height: 1; color: #d4d6ca; opacity: 0; transform: scale(.3); }
+        .sl-star.on { color: #bb8a38; text-shadow: 0 2px 0 #8a6527; }
+        .sl-star.show { animation: sl-star .55s cubic-bezier(.2, 1.6, .3, 1) forwards; }
+        .sl-win-sub { font-size: 13px; color: #596a6f; }
+        @keyframes sl-pop { from { opacity: 0; transform: translateY(-28px) scale(.7); } to { opacity: 1; transform: none; } }
+        @keyframes sl-out { to { opacity: 0; transform: translateY(-16px) scale(.95); } }
+        @keyframes sl-star { 0% { transform: scale(.3) rotate(-30deg); opacity: 0; } 70% { transform: scale(1.3) rotate(8deg); opacity: 1; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        @media (max-width: 480px) { .sl-win-card { padding: 14px 22px 18px; } .sl-win-title { font-size: 27px; } .sl-star { font-size: 36px; } }
+        @media (prefers-reduced-motion: reduce) {
+            .sl-win-card, .sl-win.leaving .sl-win-card { animation: none; }
+            .sl-star, .sl-star.show { animation: none; opacity: 1; transform: none; }
+        }
+
+        /* Lockie the vault keeper: explains the rules when "How to play" opens. */
+        .sl-guide { display: flex; align-items: center; gap: 14px; margin: 18px 0 0; padding: 14px; background: #ece9df; border: 1px solid #d0d2c7; border-radius: 14px; }
+        .sl-mascot { width: 78px; height: auto; flex: none; overflow: visible; transform-origin: 50% 100%; }
+        .sl-guide.talking .sl-mascot { animation: sl-bob .55s ease-in-out infinite alternate; }
+        .sl-eyes { transform-box: fill-box; transform-origin: center; animation: sl-blink 4s infinite; }
+        .sl-mouth-open { display: none; transform-box: fill-box; transform-origin: center; }
+        .sl-guide.talking .sl-mouth-open { display: block; animation: sl-talk .28s ease-in-out infinite alternate; }
+        .sl-guide.talking .sl-smile { display: none; }
+        .sl-hand-r { transform-box: fill-box; transform-origin: 50% 100%; }
+        .sl-guide.talking .sl-hand-r { animation: sl-wave .6s ease-in-out infinite alternate; }
+        @keyframes sl-bob { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-5px) rotate(2deg); } }
+        @keyframes sl-blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+        @keyframes sl-talk { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
+        @keyframes sl-wave { from { transform: rotate(-14deg); } to { transform: rotate(18deg); } }
+        .sl-guide-body { flex: 1; min-width: 0; }
+        .sl-bubble { position: relative; min-height: 78px; display: flex; align-items: center; padding: 10px 14px; background: #fffdf8; color: #203640; border: 2px solid #203640; border-radius: 14px; font-size: 14px; line-height: 1.45; font-weight: 600; }
+        .sl-bubble::before { content: ''; position: absolute; left: -9px; top: 50%; width: 14px; height: 14px; margin-top: -7px; background: #fffdf8; border-left: 2px solid #203640; border-bottom: 2px solid #203640; transform: rotate(45deg); }
+        .sl-bubble.pop { animation: sl-bubble .3s ease-out; }
+        @keyframes sl-bubble { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
+        .sl-guide-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .sl-guide .button { min-height: 38px; padding: 6px 14px; font-size: 13px; }
+        .sl-demo { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 112px; flex: none; padding: 5px; background: #203640; border-radius: 10px; box-shadow: 0 4px 0 #9da9a0; }
+        .sl-demo-cell { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: #fbf7ed; color: #203640; border-radius: 4px; font-size: 15px; font-weight: 760; box-shadow: 0 2px 0 #bec3bb; }
+        .sl-demo-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: 4px 4px 0 0; background: #a94f35; }
+        .sl-demo-cell[data-family='1']::before { background: #3b8291; }
+        .sl-demo-cell[data-family='2']::before { background: #bb8a38; }
+        .sl-demo-cell.hl { outline: 2px solid #f2bb65; outline-offset: -2px; background: #fff3d6; }
+        .sl-demo-cell.ok { background: #d3e8dc; box-shadow: inset 0 0 0 2px #2f866e, 0 2px 0 #a6bfb0; }
+        .sl-demo-cell.odd { box-shadow: inset 0 0 0 2px #a94f35, 0 2px 0 #bec3bb; animation: sl-odd .7s ease-in-out infinite alternate; }
+        @keyframes sl-odd { from { background: #fbf7ed; } to { background: #f3d6c8; } }
+        .rules-list li { transition: background 200ms, box-shadow 200ms; }
+        .rules-list li.sl-rule-active { background: #fff3d6; box-shadow: 0 0 0 6px #fff3d6; border-radius: 10px; }
+        .rules-list li.sl-rule-active .rule-number { background: #a94f35; color: #fffdf8; }
+        @media (max-width: 560px) {
+            .sl-guide { flex-wrap: wrap; justify-content: center; }
+            .sl-mascot { width: 64px; }
+            .sl-guide-body { flex-basis: calc(100% - 90px); }
+            .sl-demo { width: 100px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .sl-guide.talking .sl-mascot, .sl-eyes, .sl-guide.talking .sl-mouth-open, .sl-guide.talking .sl-hand-r, .sl-bubble.pop, .sl-demo-cell.odd { animation: none; }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="app">
+        <header class="app-header">
+            <div>
+                <div class="brand-kicker">Permutation vault · Solo puzzle</div>
+                <div class="brand-lockup">
+                    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 14h24l-5-5M40 34H16l5 5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 14l-4 4M17 34l4-4" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><rect x="18" y="19" width="12" height="10" rx="2" stroke="currentColor" stroke-width="3"/></svg></span>
+                    <h1>Shiftlock</h1>
+                </div>
+                <p class="subtitle">
+                    Slide a whole row. Shift a whole column. Put every number back in place.
+                </p>
+            </div>
+
+            <div class="header-actions">
+                <button class="button" type="button" id="rulesButton">How to play</button>
+                <button class="button" type="button" id="resetButton">Reset board</button>
+            </div>
+        </header>
+
+        <section class="game-layout">
+            <div class="panel vault-panel">
+                <div class="status-strip" aria-label="Puzzle status">
+                    <div class="metric">
+                        <span>Chapter</span>
+                        <strong id="chapterMetric">I</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Moves</span>
+                        <strong id="movesMetric">0</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Target</span>
+                        <strong id="parMetric">≤ 4</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Correct</span>
+                        <strong id="correctMetric">0 / 9</strong>
+                    </div>
+                </div>
+
+                <div class="vault-wrap">
+                    <div class="vault-controls" id="vaultControls">
+                        <div class="column-controls top" id="topControls"></div>
+
+                        <div class="board-band">
+                            <div class="row-controls" id="leftControls"></div>
+
+                            <div
+                                class="board"
+                                id="board"
+                                role="application"
+                                aria-label="Shiftlock tile board. Swipe rows or columns, or use the arrow buttons."
+                            ></div>
+
+                            <div class="row-controls" id="rightControls"></div>
+                        </div>
+
+                        <div class="column-controls bottom" id="bottomControls"></div>
+                    </div>
+
+                    <p class="gesture-hint">
+                        Swipe a row or column, or use the arrows.
+                    </p>
+                </div>
+            </div>
+
+            <aside class="panel side-panel">
+                <div>
+                    <div class="section-label">Current objective</div>
+                    <h2 id="levelTitle">First tumblers</h2>
+                    <p id="levelDescription">Learn how the vault wraps at every edge.</p>
+                </div>
+
+                <div class="message" id="message" aria-live="polite">
+                    Every arrow performs exactly one move.
+                </div>
+
+                <div class="button-row">
+                    <button class="button primary" type="button" id="undoButton">Undo move</button>
+                    <button class="button danger" type="button" id="impossibleButton">
+                        Declare impossible
+                    </button>
+                </div>
+
+                <div class="level-section">
+                    <div class="section-label">Puzzles</div>
+                    <div class="level-list" id="levelList"></div>
+                </div>
+
+                <section class="discovery">
+                    <button class="button spoiler-button" type="button" aria-expanded="false" aria-controls="discovery-1">Reveal the mathematics</button>
+                    <small class="spoiler-note">Optional. Contains strategy spoilers.</small>
+                    <div class="math-card" id="discovery-1" hidden>
+                    <div class="section-label">Invariant / winning condition</div>
+                    <div class="formula">Odd n: only even permutations are reachable.</div>
+                    <p>
+                        A row or column shift on an odd board is an even cycle. Legal moves cannot
+                        change permutation parity. On a 4×4 board this parity test does not block a state,
+                        because one legal shift already changes parity.
+                    </p>
+                </div>
+                </section>
+            </aside>
+        </section>
+    </main>
+
+    <div class="modal-backdrop" id="rulesModal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+        <section class="modal">
+            <div class="modal-header">
+                <div>
+                    <div class="section-label">Vault handbook</div>
+                    <h2 id="rulesTitle">Four arrows are the whole ruleset</h2>
+                </div>
+                <button class="button" type="button" id="closeRulesButton">Close</button>
+            </div>
+
+            <ol class="rules-list">
+                <li>
+                    <span class="rule-number">1</span>
+                    <p>Shift any complete row one space left or right. Tiles wrap around the edge.</p>
+                </li>
+                <li>
+                    <span class="rule-number">2</span>
+                    <p>Shift any complete column one space up or down. There is no empty square.</p>
+                </li>
+                <li>
+                    <span class="rule-number">3</span>
+                    <p>Return every numbered rune to its matching position. Fewer moves earn a better record.</p>
+                </li>
+                <li>
+                    <span class="rule-number">4</span>
+                    <p>Some challenge boards may be impossible. Try solving one, or submit an impossibility verdict when you are ready.</p>
+                </li>
+            </ol>
+
+            <section class="discovery">
+                    <button class="button spoiler-button" type="button" aria-expanded="false" aria-controls="discovery-2">Reveal the mathematics</button>
+                    <small class="spoiler-note">Optional. Contains strategy spoilers.</small>
+                    <div class="math-card" id="discovery-2" hidden>
+                <div class="section-label">Why the glitch can be proved</div>
+                <div class="formula">One shift of n tiles uses n − 1 pair swaps.</div>
+                <p>
+                    For 3×3 and 5×5 boards, every legal row or column rotation is even. A sequence of
+                    legal moves stays even, while swapping exactly two tiles is odd. No search is needed:
+                    parity is a certificate of impossibility.
+                </p>
+            </div>
+                </section>
+        </section>
+    </div>
+
+    <script>
+        "use strict";
+
+        // Recompose existing controls without changing their IDs or game handlers.
+        // Native dialog provides focus trapping, Escape and inert background behavior.
+        function arrangePlayScreen() {
+            const sidebar = document.querySelector('.side-panel');
+            const layout = document.querySelector('.game-layout');
+            const heading = sidebar.firstElementChild;
+            heading.className = 'play-heading';
+            layout.prepend(heading);
+
+            const dock = document.createElement('footer');
+            dock.className = 'play-dock';
+            dock.append(sidebar.querySelector('.button-row'), document.querySelector('#message'));
+            layout.append(dock);
+
+            const drawer = document.createElement('dialog');
+            drawer.className = 'collection-dialog';
+            drawer.setAttribute('aria-label', 'Puzzles and discoveries');
+            const header = document.createElement('div');
+            header.className = 'collection-header';
+            const title = document.createElement('h2');
+            title.textContent = 'Choose a puzzle';
+            const close = document.createElement('button');
+            close.className = 'button';
+            close.textContent = 'Close';
+            close.type = 'button';
+            close.addEventListener('click', () => drawer.close());
+            header.append(title, close);
+            drawer.append(header);
+            while (sidebar.firstChild) drawer.append(sidebar.firstChild);
+            sidebar.remove();
+            document.body.append(drawer);
+
+            const open = document.createElement('button');
+            open.type = 'button';
+            open.className = 'button';
+            open.textContent = 'Puzzles';
+            open.addEventListener('click', () => drawer.showModal());
+            document.querySelector('.header-actions').prepend(open);
+            drawer.addEventListener('click', event => {
+                if (event.target.closest('.level-button')) drawer.close();
+                if (event.target === drawer && event.clientX < drawer.getBoundingClientRect().left) drawer.close();
+            });
+            document.querySelector('#rulesButton').textContent = 'Rules';
+            document.querySelector('#resetButton').textContent = 'Restart';
+            document.querySelector('#undoButton').textContent = 'Undo';
+        }
+        arrangePlayScreen();
+
+        const demoControls = document.createElement('div');
+        demoControls.className = 'demo-controls';
+        demoControls.innerHTML = `<span class="demo-label">Board</span>
+            <button class="button size-button" type="button" data-size="3">3×3</button>
+            <button class="button size-button" type="button" data-size="4">4×4</button>
+            <button class="button size-button" type="button" data-size="5">5×5</button>
+            <button class="button" type="button" id="randomButton">Random scramble</button>
+            <button class="button" type="button" id="showImpossibleButton">Show impossible</button>
+            <button class="button primary" type="button" id="solveButton">Solve ▶</button>`;
+        document.querySelector('.play-dock').prepend(demoControls);
+
+        const playback = document.createElement('section');
+        playback.className = 'playback-panel';
+        playback.setAttribute('aria-label', 'Solve playback');
+        playback.innerHTML = `<div class="playback-top">
+            <div><span class="playback-kicker">MOVE BY MOVE</span><strong>Solve timeline</strong></div>
+            <div class="speed-control" role="group" aria-label="Solve speed">
+                <button type="button" class="speed-button" data-speed="slow" aria-pressed="false">Slow</button>
+                <button type="button" class="speed-button" data-speed="fast" aria-pressed="true">Fast</button>
+            </div></div>
+            <div class="timeline-controls">
+                <button type="button" class="timeline-step" id="previousStep" aria-label="Previous solve step" disabled>←</button>
+                <input type="range" id="solveTimeline" min="0" max="0" value="0" disabled aria-label="Solve step">
+                <button type="button" class="timeline-step" id="nextStep" aria-label="Next solve step" disabled>→</button>
+                <span id="timelineCount">0 / 0</span>
+            </div>
+            <p id="timelineDescription">Press Solve to see each legal move.</p>`;
+        demoControls.after(playback);
+
+
+        // Spoilers are hidden in both the game and the basic rules on every load.
+        document.querySelectorAll('.spoiler-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const content = document.getElementById(button.getAttribute('aria-controls'));
+                const open = button.getAttribute('aria-expanded') !== 'true';
+                button.setAttribute('aria-expanded', String(open));
+                content.hidden = !open;
+                if (open && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    content.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 220, easing: 'ease-out' });
+                }
+            });
+        });
+
+
+        const runeSymbols = [
+            "I", "II", "III", "IV", "V",
+            "VI", "VII", "VIII", "IX", "X",
+            "XI", "XII", "XIII", "XIV", "XV",
+            "XVI", "XVII", "XVIII", "XIX", "XX",
+            "XXI", "XXII", "XXIII", "XXIV", "XXV"
+        ];
+
+        const levels = [
+            {
+                title: "First tumblers",
+                chapter: "I",
+                description: "A short legal scramble. Learn the wrap-around controls.",
+                size: 3,
+                par: 4,
+                scramble: [
+                    ["row", 0, 1],
+                    ["column", 2, 1],
+                    ["row", 1, -1],
+                    ["column", 0, -1]
+                ]
+            },
+            {
+                title: "Order matters",
+                chapter: "I",
+                description: "Rows then columns do not behave like columns then rows.",
+                size: 3,
+                par: 6,
+                scramble: [
+                    ["row", 2, 1],
+                    ["column", 0, 1],
+                    ["row", 0, -1],
+                    ["column", 2, -1],
+                    ["row", 1, 1],
+                    ["column", 1, 1]
+                ]
+            },
+            {
+                title: "The commutator",
+                chapter: "II",
+                description: "Look for a sequence that disturbs only a few runes.",
+                size: 3,
+                par: 8,
+                scramble: [
+                    ["row", 0, 1],
+                    ["column", 0, 1],
+                    ["row", 0, -1],
+                    ["column", 0, -1],
+                    ["row", 2, 1],
+                    ["column", 2, -1],
+                    ["row", 1, 1],
+                    ["column", 1, 1]
+                ]
+            },
+            {
+                title: "Even chamber",
+                chapter: "III",
+                description: "A bigger board. The same four directions. Find your way back.",
+                size: 4,
+                par: 9,
+                scramble: [
+                    ["row", 0, 1],
+                    ["column", 3, 1],
+                    ["row", 2, -1],
+                    ["column", 1, -1],
+                    ["row", 3, 1],
+                    ["column", 0, 1],
+                    ["row", 1, 1],
+                    ["column", 2, -1],
+                    ["row", 0, -1]
+                ]
+            },
+            {
+                title: "Signal lost",
+                chapter: "GLITCH",
+                description: "It looks almost solved. Solve it-or prove the corruption is unreachable.",
+                size: 3,
+                par: null,
+                glitch: true
+            }
+        ];
+
+        const boardElement = document.querySelector("#board");
+        const topControls = document.querySelector("#topControls");
+        const bottomControls = document.querySelector("#bottomControls");
+        const leftControls = document.querySelector("#leftControls");
+        const rightControls = document.querySelector("#rightControls");
+        const messageElement = document.querySelector("#message");
+        const rulesModal = document.querySelector("#rulesModal");
+
+        let currentLevelIndex = 0;
+        let boardSize = 3;
+        let board = [];
+        let startingBoard = [];
+        let moveCount = 0;
+        let moveHistory = [];
+        let solved = false;
+        let pointerStart = null;
+        let customLevel = null;
+        let solutionPath = [];
+        let startingPath = [];
+        let animationToken = 0;
+        let animating = false;
+        let solveSpeed = 'fast';
+        let timeline = null;
+
+        const timelineInput = document.querySelector('#solveTimeline');
+        const timelineCount = document.querySelector('#timelineCount');
+        const timelineDescription = document.querySelector('#timelineDescription');
+
+        function moveLabel([kind, index, direction]) {
+            return `${kind === 'row' ? 'Row' : 'Column'} ${index + 1} ${kind === 'row'
+                ? (direction > 0 ? 'right' : 'left') : (direction > 0 ? 'down' : 'up')}`;
+        }
+        function playbackDelay() { return solveSpeed === 'slow' ? 800 : 125; }
+        function updateTimelineControls() {
+            const length = timeline ? timeline.moves.length : 0;
+            const position = timeline ? timeline.index : 0;
+            timelineInput.max = String(length);
+            timelineInput.value = String(position);
+            timelineInput.disabled = !timeline;
+            timelineInput.style.background = timeline
+                ? `linear-gradient(to right, #a94f35 ${length ? position / length * 100 : 0}%, #d4d6ca 0)` : '';
+            timelineCount.textContent = `${position} / ${length}`;
+            document.querySelector('#previousStep').disabled = !timeline || position === 0;
+            document.querySelector('#nextStep').disabled = !timeline || position === length;
+            timelineDescription.textContent = !timeline ? 'Press Solve to see each legal move.'
+                : position === 0 ? 'Starting arrangement — move the slider or press →.'
+                : `Step ${position}: ${moveLabel(timeline.moves[position - 1])}${position === length ? ' · solved' : ''}`;
+        }
+        function clearTimeline() {
+            timeline = null;
+            updateTimelineControls();
+        }
+
+        function shifted(values, size, [kind, index, direction]) {
+            const result = values.slice();
+            const positions = Array.from({length: size}, (_, i) => kind === 'row' ? index * size + i : i * size + index);
+            positions.forEach((position, i) => {
+                result[position] = values[positions[(i - direction + size) % size]];
+            });
+            return result;
+        }
+
+        function seekTimeline(position, pause = true) {
+            if (!timeline) return;
+            if (pause) cancelAnimation();
+            const oldPosition = timeline.index;
+            timeline.index = Math.max(0, Math.min(timeline.moves.length, Number(position)));
+            const next = timeline.index;
+            board = timeline.states[next].slice();
+            solutionPath = timeline.basePath.slice(0, timeline.moves.length - next);
+            moveHistory = [];
+            moveCount = timeline.baseMoveCount + next;
+            solved = next === timeline.moves.length;
+            const adjacent = Math.abs(next - oldPosition) === 1;
+            const move = next > oldPosition ? timeline.moves[oldPosition] :
+                next < oldPosition ? [timeline.moves[next][0], timeline.moves[next][1], -timeline.moves[next][2]] : null;
+            renderBoard(adjacent, move && {kind: move[0], index: move[1], direction: move[2]});
+            updateMetrics();
+            updateTimelineControls();
+            if (next === timeline.moves.length) setMessage('Vault restored. Drag the timeline back to inspect any move.', 'success');
+            else setMessage(`Showing solve step ${next} of ${timeline.moves.length}.`, 'neutral');
+        }
+
+        function activeLevel() { return customLevel || levels[currentLevelIndex]; }
+        function setAnimating(value) {
+            animating = value;
+            document.querySelectorAll('.shift-control, .demo-controls button, #undoButton, #resetButton, #impossibleButton')
+                .forEach(button => { button.disabled = value; });
+        }
+        function cancelAnimation() {
+            animationToken += 1;
+            setAnimating(false);
+        }
+        function refreshSizeButtons() {
+            document.querySelectorAll('.size-button').forEach(button => {
+                button.setAttribute('aria-pressed', String(Number(button.dataset.size) === boardSize));
+            });
+        }
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        function solvedBoard(size) {
+            return Array.from({ length: size * size }, (_, index) => index);
+        }
+
+        function indexFor(row, column) {
+            return row * boardSize + column;
+        }
+
+        function rotateArray(values, direction) {
+            const copy = values.slice();
+
+            if (direction > 0) {
+                copy.unshift(copy.pop());
+            } else {
+                copy.push(copy.shift());
+            }
+
+            return copy;
+        }
+
+        function applyShift(kind, index, direction, options = {}) {
+            if ((animating && !options.auto) || (solved && !options.setup && !options.auto)) {
+                return;
+            }
+            if (!options.setup && !options.auto && timeline) clearTimeline();
+
+            if (kind === "row") {
+                const start = index * boardSize;
+                const row = board.slice(start, start + boardSize);
+                const rotated = rotateArray(row, direction);
+
+                for (let column = 0; column < boardSize; column += 1) {
+                    board[start + column] = rotated[column];
+                }
+            } else {
+                const column = [];
+
+                for (let row = 0; row < boardSize; row += 1) {
+                    column.push(board[indexFor(row, index)]);
+                }
+
+                const rotated = rotateArray(column, direction);
+
+                for (let row = 0; row < boardSize; row += 1) {
+                    board[indexFor(row, index)] = rotated[row];
+                }
+            }
+
+            if (!options.setup) {
+                moveCount += 1;
+                if (!options.replay) {
+                    moveHistory.push([kind, index, direction]);
+                    if (solutionPath !== null) solutionPath.push([kind, index, direction]);
+                }
+                if (!options.auto) setMessage(`${kind === "row" ? "Row" : "Column"} ${index + 1} shifted.`, "neutral");
+            }
+
+            renderBoard(!options.setup, { kind, index, direction });
+            updateMetrics();
+
+            if (!options.setup && !options.skipWin) {
+                checkForWin();
+            }
+        }
+
+        function renderBoard(animate = false, move = null) {
+            boardElement.style.gridTemplateColumns = `repeat(${boardSize}, minmax(0, 1fr))`;
+            boardElement.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
+            const previousTiles = Array.from(boardElement.children);
+            const existing = new Map(previousTiles.map(tile => [Number(tile.dataset.value), tile]));
+            const previousPositions = new Map(previousTiles.map((tile, position) => [Number(tile.dataset.value), position]));
+            const movedTiles = [];
+
+            board.forEach((value, position) => {
+                const tile = existing.get(value) || document.createElement("div");
+                tile.className = value === position ? "tile correct" : "tile";
+                tile.dataset.value = String(value);
+                tile.dataset.family = String(Math.floor(value / boardSize) % 4);
+                if (!tile.children.length) {
+                    const symbol = document.createElement("span");
+                    symbol.className = "tile-value";
+                    symbol.textContent = value + 1;
+                    tile.append(symbol);
+                }
+                tile.setAttribute('aria-label', `Tile ${value + 1}, target position ${value + 1}`);
+                boardElement.append(tile);
+                const affected = move && (move.kind === 'row'
+                    ? Math.floor(position / boardSize) === move.index
+                    : position % boardSize === move.index);
+                if (affected) movedTiles.push({tile, previousPosition: previousPositions.get(value), position});
+                if (!animate) tile.getAnimations().forEach(animation => animation.cancel());
+            });
+            for (const [value, tile] of existing) {
+                if (!board.includes(value)) tile.remove();
+            }
+            // Measure only after the complete grid is laid out. Never read animated
+            // rectangles: they include transient transforms from the previous move.
+            if (animate && move && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                const gap = parseFloat(getComputedStyle(boardElement).gap) || 0;
+                for (const {tile, previousPosition, position} of movedTiles) {
+                    tile.getAnimations().forEach(animation => animation.cancel());
+                    const dx = previousPosition === undefined ? 0 :
+                        ((previousPosition % boardSize) - (position % boardSize)) * (tile.offsetWidth + gap);
+                    const dy = previousPosition === undefined ? 0 :
+                        (Math.floor(previousPosition / boardSize) - Math.floor(position / boardSize)) * (tile.offsetHeight + gap);
+                    tile.animate([
+                        { transform: `translate(${dx}px, ${dy}px)` },
+                        { transform: 'translate(0, 0)' }
+                    ], { duration: animating ? (solveSpeed === 'slow' ? 650 : 105) : 240, easing: 'cubic-bezier(.22,.75,.2,1)' });
+                }
+            }
+        }
+
+        function createShiftButton(label, ariaLabel, action) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "shift-control";
+            button.textContent = label;
+            button.setAttribute("aria-label", ariaLabel);
+
+            // pointerdown fires immediately and avoids the delayed-feeling click path on touch screens.
+            button.addEventListener("pointerdown", (event) => {
+                event.preventDefault();
+                action();
+            });
+
+            button.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    action();
+                }
+            });
+
+            return button;
+        }
+
+        function renderControls() {
+            topControls.style.gridTemplateColumns = `repeat(${boardSize}, minmax(0, 1fr))`;
+            bottomControls.style.gridTemplateColumns = `repeat(${boardSize}, minmax(0, 1fr))`;
+            leftControls.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
+            rightControls.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
+
+            topControls.innerHTML = "";
+            bottomControls.innerHTML = "";
+            leftControls.innerHTML = "";
+            rightControls.innerHTML = "";
+
+            for (let index = 0; index < boardSize; index += 1) {
+                topControls.append(
+                    createShiftButton("↑", `Shift column ${index + 1} up`, () => {
+                        applyShift("column", index, -1);
+                    })
+                );
+
+                bottomControls.append(
+                    createShiftButton("↓", `Shift column ${index + 1} down`, () => {
+                        applyShift("column", index, 1);
+                    })
+                );
+
+                leftControls.append(
+                    createShiftButton("←", `Shift row ${index + 1} left`, () => {
+                        applyShift("row", index, -1);
+                    })
+                );
+
+                rightControls.append(
+                    createShiftButton("→", `Shift row ${index + 1} right`, () => {
+                        applyShift("row", index, 1);
+                    })
+                );
+            }
+        }
+
+        function updateMetrics() {
+            const level = activeLevel();
+            const correctTiles = board.reduce((count, value, position) => {
+                return count + Number(value === position);
+            }, 0);
+
+            document.querySelector("#chapterMetric").textContent = level.chapter;
+            document.querySelector("#movesMetric").textContent = moveCount;
+            document.querySelector("#parMetric").textContent = level.par === null ? "PROVE" : `≤ ${level.par}`;
+            document.querySelector("#correctMetric").textContent = `${correctTiles} / ${board.length}`;
+        }
+
+        function checkForWin() {
+            const isSolved = board.every((value, position) => value === position);
+
+            if (!isSolved) {
+                return;
+            }
+
+            solved = true;
+            const par = activeLevel().par;
+            const record = par !== null && moveCount <= par;
+
+            setMessage(
+                record
+                    ? `Vault restored in ${moveCount} moves. Target cleared.`
+                    : `Vault restored in ${moveCount} moves. Now try to beat the target.`,
+                "success"
+            );
+        }
+
+        function permutationParity(values) {
+            let inversions = 0;
+
+            for (let left = 0; left < values.length; left += 1) {
+                for (let right = left + 1; right < values.length; right += 1) {
+                    if (values[left] > values[right]) {
+                        inversions += 1;
+                    }
+                }
+            }
+
+            return inversions % 2;
+        }
+
+        function declareImpossible() {
+            if (animating) return;
+            const oddPermutation = permutationParity(board) === 1;
+            const parityBlocksBoard = boardSize % 2 === 1 && oddPermutation;
+
+            if (parityBlocksBoard) {
+                solved = true;
+                setMessage(
+                    "Correct. This odd permutation cannot be reached by legal moves on an odd board.",
+                    "success"
+                );
+            } else {
+                setMessage(
+                    "This board has no parity obstruction. It was generated by legal moves and can be solved.",
+                    "error"
+                );
+            }
+        }
+
+        function undoMove() {
+            if (animating) return;
+            if (moveHistory.length === 0) {
+                setMessage("There is no move to undo.", "neutral");
+                return;
+            }
+
+            const [kind, index, direction] = moveHistory.pop();
+            if (solutionPath !== null) solutionPath.pop();
+            solved = false;
+
+            // Apply the inverse without adding a second history entry.
+            if (kind === "row") {
+                const start = index * boardSize;
+                const row = board.slice(start, start + boardSize);
+                const rotated = rotateArray(row, -direction);
+
+                for (let column = 0; column < boardSize; column += 1) {
+                    board[start + column] = rotated[column];
+                }
+            } else {
+                const column = [];
+
+                for (let row = 0; row < boardSize; row += 1) {
+                    column.push(board[indexFor(row, index)]);
+                }
+
+                const rotated = rotateArray(column, -direction);
+
+                for (let row = 0; row < boardSize; row += 1) {
+                    board[indexFor(row, index)] = rotated[row];
+                }
+            }
+
+            moveCount = Math.max(0, moveCount - 1);
+            renderBoard(true, { kind, index, direction: -direction });
+            updateMetrics();
+            setMessage("Last shift reversed.", "neutral");
+        }
+
+        function setMessage(text, tone) {
+            messageElement.textContent = text;
+            messageElement.className = "message";
+
+            if (tone === "success") {
+                messageElement.classList.add("success");
+            } else if (tone === "error") {
+                messageElement.classList.add("error");
+            }
+        }
+
+        function buildLevelList() {
+            const list = document.querySelector("#levelList");
+            list.innerHTML = "";
+
+            levels.forEach((level, index) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "level-button";
+
+                if (index === currentLevelIndex) {
+                    button.classList.add("active");
+                }
+
+                button.innerHTML = `
+                    <span><strong>${index + 1}. ${level.title}</strong><br><small>${level.size}×${level.size}</small></span>
+                    <span>${level.glitch ? "?" : `≤ ${level.par}`}</span>
+                `;
+
+                button.addEventListener("click", () => loadLevel(index));
+                list.append(button);
+            });
+        }
+
+        function loadLevel(index) {
+            cancelAnimation();
+            clearTimeline();
+            customLevel = null;
+            currentLevelIndex = index;
+            const level = levels[index];
+
+            boardSize = level.size;
+            board = solvedBoard(boardSize);
+            solutionPath = [];
+            moveCount = 0;
+            moveHistory = [];
+            solved = false;
+
+            if (level.glitch) {
+                const final = board.length - 1;
+                [board[final - 1], board[final]] = [board[final], board[final - 1]];
+                solutionPath = null;
+            } else {
+                level.scramble.forEach(([kind, targetIndex, direction]) => {
+                    applyShift(kind, targetIndex, direction, { setup: true });
+                });
+                solutionPath = level.scramble.map(move => move.slice());
+            }
+
+            startingBoard = board.slice();
+            startingPath = solutionPath === null ? null : solutionPath.map(move => move.slice());
+            document.querySelector("#levelTitle").textContent = level.title;
+            document.querySelector("#levelDescription").textContent = level.description;
+
+            renderControls();
+            renderBoard(false);
+            updateMetrics();
+            buildLevelList();
+            refreshSizeButtons();
+            setMessage(
+                level.glitch
+                    ? "This board may be corrupted. Solve it or produce an impossibility verdict."
+                    : "Every arrow performs exactly one move.",
+                "neutral"
+            );
+        }
+
+        function resetLevel() {
+            cancelAnimation();
+            clearTimeline();
+            board = startingBoard.slice();
+            solutionPath = startingPath === null ? null : startingPath.map(move => move.slice());
+            moveCount = 0;
+            moveHistory = [];
+            solved = false;
+            renderBoard(false);
+            updateMetrics();
+            setMessage("Starting arrangement restored.", "neutral");
+        }
+
+        function selectSize(size) {
+            cancelAnimation();
+            clearTimeline();
+            boardSize = size;
+            board = solvedBoard(size);
+            startingBoard = board.slice();
+            solutionPath = [];
+            startingPath = [];
+            moveCount = 0;
+            moveHistory = [];
+            solved = false;
+            customLevel = {
+                title: `${size}×${size} board`,
+                description: 'Shift complete rows and columns to arrange the tiles in order.',
+                chapter: 'DEMO', size, par: null
+            };
+            document.querySelector('#levelTitle').textContent = customLevel.title;
+            document.querySelector('#levelDescription').textContent = customLevel.description;
+            renderControls();
+            renderBoard(false);
+            updateMetrics();
+            buildLevelList();
+            refreshSizeButtons();
+            setMessage('Board ready. A random scramble uses legal shifts only.', 'neutral');
+        }
+
+        async function randomScramble() {
+            const size = boardSize;
+            selectSize(size);
+            const token = ++animationToken;
+            setAnimating(true);
+            const count = size === 3 ? 7 : size === 4 ? 9 : 11;
+            let previous = null;
+            for (let step = 0; step < count; step += 1) {
+                if (token !== animationToken) return;
+                let move;
+                do {
+                    move = [Math.random() < .5 ? 'row' : 'column',
+                        Math.floor(Math.random() * size), Math.random() < .5 ? -1 : 1];
+                } while (previous && move[0] === previous[0] && move[1] === previous[1]);
+                applyShift(...move, { auto: true, skipWin: true });
+                previous = move;
+                await delay(125);
+            }
+            if (token !== animationToken) return;
+            startingBoard = board.slice();
+            startingPath = solutionPath.map(move => move.slice());
+            moveCount = 0;
+            moveHistory = [];
+            solved = false;
+            setAnimating(false);
+            updateMetrics();
+            setMessage(`${size}×${size} legal scramble complete. Solve it yourself or watch Solve.`, 'neutral');
+        }
+
+        function showImpossible() {
+            if (boardSize === 4) {
+                selectSize(4);
+                setMessage('Board reset. The parity example applies to 3×3 and 5×5.', 'neutral');
+                return;
+            }
+            selectSize(boardSize);
+            [board[0], board[1]] = [board[1], board[0]];
+            startingBoard = board.slice();
+            solutionPath = null;
+            startingPath = null;
+            renderBoard(false);
+            updateMetrics();
+            setMessage('Can legal moves produce this single swap? Try Declare impossible.', 'neutral');
+        }
+
+        async function autoSolve() {
+            if (animating) return;
+            if (!timeline) {
+                if (board.every((value, position) => value === position)) {
+                    setMessage('The board is already solved.', 'success');
+                    return;
+                }
+                if (boardSize % 2 === 1 && permutationParity(board) === 1) {
+                    setMessage('No legal solution: this arrangement has odd parity on an odd-sized board.', 'error');
+                    return;
+                }
+                if (solutionPath === null) {
+                    setMessage('No recorded legal route exists for this board.', 'error');
+                    return;
+                }
+                const reverse = solutionPath.slice().reverse().map(([kind, index, direction]) =>
+                    [kind, index, -direction]);
+                const states = [board.slice()];
+                reverse.forEach(move => states.push(shifted(states.at(-1), boardSize, move)));
+                timeline = {moves: reverse, states, index: 0, basePath: solutionPath.slice(), baseMoveCount: moveCount};
+                updateTimelineControls();
+            } else if (timeline.index === timeline.moves.length) {
+                seekTimeline(0);
+            }
+            const token = ++animationToken;
+            solved = false;
+            setAnimating(true);
+            setMessage(`Replaying ${timeline.moves.length - timeline.index} legal moves at ${solveSpeed} speed…`, 'neutral');
+            while (timeline.index < timeline.moves.length) {
+                if (token !== animationToken) return;
+                seekTimeline(timeline.index + 1, false);
+                await delay(playbackDelay());
+            }
+            if (token !== animationToken) return;
+            setAnimating(false);
+            setMessage('Vault restored. Drag the timeline back to inspect any move.', 'success');
+        }
+
+        function rowFromPointer(event) {
+            const bounds = boardElement.getBoundingClientRect();
+            const localY = event.clientY - bounds.top;
+            return Math.max(0, Math.min(boardSize - 1, Math.floor(localY / (bounds.height / boardSize))));
+        }
+
+        function columnFromPointer(event) {
+            const bounds = boardElement.getBoundingClientRect();
+            const localX = event.clientX - bounds.left;
+            return Math.max(0, Math.min(boardSize - 1, Math.floor(localX / (bounds.width / boardSize))));
+        }
+
+        function handlePointerDown(event) {
+            if (animating) return;
+            pointerStart = {
+                x: event.clientX,
+                y: event.clientY,
+                row: rowFromPointer(event),
+                column: columnFromPointer(event)
+            };
+
+            boardElement.setPointerCapture(event.pointerId);
+        }
+
+        function handlePointerUp(event) {
+            if (animating) return;
+            if (!pointerStart) {
+                return;
+            }
+
+            const deltaX = event.clientX - pointerStart.x;
+            const deltaY = event.clientY - pointerStart.y;
+            const threshold = 28;
+
+            if (Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) {
+                setMessage("Swipe farther, or use an arrow button for exact control.", "neutral");
+                pointerStart = null;
+                return;
+            }
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                applyShift("row", pointerStart.row, deltaX > 0 ? 1 : -1);
+            } else {
+                applyShift("column", pointerStart.column, deltaY > 0 ? 1 : -1);
+            }
+
+            pointerStart = null;
+        }
+
+        function openRules() {
+            rulesModal.classList.add("open");
+            document.querySelector("#closeRulesButton").focus();
+        }
+
+        function closeRules() {
+            rulesModal.classList.remove("open");
+            document.querySelector("#rulesButton").focus();
+        }
+
+        boardElement.addEventListener("pointerdown", handlePointerDown);
+        boardElement.addEventListener("pointerup", handlePointerUp);
+        boardElement.addEventListener("pointercancel", () => {
+            pointerStart = null;
+        });
+
+        document.querySelector("#rulesButton").addEventListener("click", openRules);
+        document.querySelector("#closeRulesButton").addEventListener("click", closeRules);
+        document.querySelector("#resetButton").addEventListener("click", resetLevel);
+        document.querySelector("#undoButton").addEventListener("click", undoMove);
+        document.querySelector("#impossibleButton").addEventListener("click", declareImpossible);
+        document.querySelectorAll('.size-button').forEach(button =>
+            button.addEventListener('click', () => selectSize(Number(button.dataset.size))));
+        document.querySelector('#randomButton').addEventListener('click', randomScramble);
+        document.querySelector('#showImpossibleButton').addEventListener('click', showImpossible);
+        document.querySelector('#solveButton').addEventListener('click', autoSolve);
+        document.querySelectorAll('.speed-button').forEach(button => button.addEventListener('click', () => {
+            solveSpeed = button.dataset.speed;
+            document.querySelectorAll('.speed-button').forEach(item =>
+                item.setAttribute('aria-pressed', String(item === button)));
+        }));
+        timelineInput.addEventListener('input', () => seekTimeline(timelineInput.value));
+        document.querySelector('#previousStep').addEventListener('click', () => seekTimeline(timeline.index - 1));
+        document.querySelector('#nextStep').addEventListener('click', () => seekTimeline(timeline.index + 1));
+
+        rulesModal.addEventListener("click", (event) => {
+            if (event.target === rulesModal) {
+                closeRules();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && rulesModal.classList.contains("open")) {
+                closeRules();
+            }
+        });
+
+        loadLevel(0);
+    </script>
+    <script id="shiftlock-gamify-script">
+        /* ===== Gamification add-on =====
+           Adds theme songs, sound effects, a friendly voice and a win celebration.
+           It only *wraps* existing game functions (the originals still run first and
+           unchanged), and every hook is wrapped in try/catch, so if anything here
+           fails the game itself keeps working exactly as before. */
+        (function () {
+            'use strict';
+
+            // ---------- settings (remembered between visits) ----------
+            const store = {
+                get(key, fallback) { try { const v = localStorage.getItem('shiftlock.' + key); return v === null ? fallback : v === '1'; } catch (e) { return fallback; } },
+                set(key, on) { try { localStorage.setItem('shiftlock.' + key, on ? '1' : '0'); } catch (e) { /* ignore */ } }
+            };
+            let musicOn = store.get('music', true);
+            let effectsOn = store.get('effects', true);
+            let voiceOn = store.get('voice', true);
+            let unlocked = false;
+            const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const pick = list => list[Math.floor(Math.random() * list.length)];
+            const N = midi => 440 * Math.pow(2, (midi - 69) / 12);
+
+            // ---------- audio engine (all sounds are synthesized, no files needed) ----------
+            const AC = window.AudioContext || window.webkitAudioContext;
+            let ctx = null, musicBus = null, sfxBus = null, noiseBuf = null;
+            const MUSIC_VOL = 0.5;
+            let duck = 1, duckTimer = null;
+
+            function ensureAudio() {
+                if (ctx || !AC) return ctx;
+                ctx = new AC();
+                const comp = ctx.createDynamicsCompressor();
+                comp.threshold.value = -16; comp.ratio.value = 6;
+                const master = ctx.createGain();
+                master.gain.value = 0.9;
+                master.connect(comp); comp.connect(ctx.destination);
+                const soften = ctx.createBiquadFilter();
+                soften.type = 'lowpass'; soften.frequency.value = 5200;
+                soften.connect(master);
+                musicBus = ctx.createGain();
+                musicBus.gain.value = musicOn ? MUSIC_VOL : 0;
+                musicBus.connect(soften);
+                sfxBus = ctx.createGain();
+                sfxBus.gain.value = 0.85;
+                sfxBus.connect(master);
+                noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+                const data = noiseBuf.getChannelData(0);
+                for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+                return ctx;
+            }
+
+            function applyMusicGain() {
+                if (!ctx) return;
+                musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOL * duck : 0, ctx.currentTime, 0.08);
+            }
+            function setDuck(level, restoreAfterMs) {
+                duck = level;
+                applyMusicGain();
+                clearTimeout(duckTimer);
+                if (restoreAfterMs) duckTimer = setTimeout(() => setDuck(1), restoreAfterMs);
+            }
+
+            function tone(freq, t, dur, o = {}) {
+                const osc = ctx.createOscillator(), gain = ctx.createGain();
+                const vol = o.vol === undefined ? 0.1 : o.vol;
+                osc.type = o.type || 'square';
+                osc.frequency.setValueAtTime(freq, t);
+                if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(o.slideTo, t + dur);
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.linearRampToValueAtTime(vol, t + (o.attack || 0.005));
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+                osc.connect(gain); gain.connect(o.bus || sfxBus);
+                osc.start(t); osc.stop(t + dur + 0.03);
+            }
+            function noise(t, dur, o = {}) {
+                const src = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+                src.buffer = noiseBuf;
+                filter.type = o.type || 'highpass';
+                filter.frequency.setValueAtTime(o.freq || 4000, t);
+                if (o.sweepTo) filter.frequency.exponentialRampToValueAtTime(o.sweepTo, t + dur);
+                gain.gain.setValueAtTime(o.vol === undefined ? 0.1 : o.vol, t);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+                src.connect(filter); filter.connect(gain); gain.connect(o.bus || sfxBus);
+                src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.03);
+            }
+            function kick(t) {
+                const osc = ctx.createOscillator(), gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+                gain.gain.setValueAtTime(0.34, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+                osc.connect(gain); gain.connect(musicBus);
+                osc.start(t); osc.stop(t + 0.2);
+            }
+
+            // ---------- theme songs (three loops that change with the chapter) ----------
+            // Each theme: 4 bars of 8 eighth-notes. Melody entries are MIDI notes (0 = rest).
+            const ARP = [0, 1, 2, 3, 2, 1, 2, 1];
+            const THEMES = [
+                { // Chapter I: bright and bouncy (C major)
+                    bpm: 124, lead: 'square',
+                    bass: [48, 45, 41, 43],
+                    chords: [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67]],
+                    mel: [76, 0, 72, 76, 79, 0, 76, 0,
+                          81, 0, 79, 76, 72, 0, 76, 0,
+                          77, 0, 81, 77, 76, 0, 72, 0,
+                          79, 0, 83, 79, 74, 76, 74, 0]
+                },
+                { // Chapters II-III: faster and more driving (A minor)
+                    bpm: 138, lead: 'square',
+                    bass: [45, 41, 48, 43],
+                    chords: [[57, 60, 64, 69], [53, 57, 60, 65], [60, 64, 67, 72], [55, 59, 62, 67]],
+                    mel: [81, 0, 84, 81, 79, 0, 76, 0,
+                          77, 0, 81, 77, 76, 0, 72, 0,
+                          79, 0, 84, 79, 76, 79, 84, 0,
+                          83, 0, 79, 74, 79, 0, 83, 0]
+                },
+                { // GLITCH chapter: mysterious arcade vibe (D minor)
+                    bpm: 112, lead: 'sawtooth',
+                    bass: [50, 46, 43, 45],
+                    chords: [[62, 65, 69, 74], [58, 62, 65, 70], [55, 58, 62, 67], [57, 61, 64, 69]],
+                    mel: [74, 0, 77, 81, 77, 0, 74, 0,
+                          70, 0, 74, 77, 74, 0, 70, 0,
+                          67, 0, 70, 74, 79, 0, 74, 0,
+                          73, 0, 76, 81, 76, 0, 73, 0]
+                }
+            ];
+            let themeIdx = 0, step = 0, nextT = 0, timer = null;
+
+            function playStep(s, t, th, d) {
+                const bar = Math.floor(s / 8), i = s % 8;
+                if (i === 0 || i === 4) tone(N(th.bass[bar]), t, d * 3.6, { type: 'triangle', vol: 0.24, bus: musicBus });
+                if (i === 6) tone(N(th.bass[bar] + 12), t, d * 1.6, { type: 'triangle', vol: 0.12, bus: musicBus });
+                tone(N(th.chords[bar][ARP[i]]), t, d * 0.9, { type: 'square', vol: 0.032, bus: musicBus });
+                const m = th.mel[s];
+                if (m) tone(N(m), t, d * 1.8, { type: th.lead, vol: th.lead === 'sawtooth' ? 0.045 : 0.065, attack: 0.012, bus: musicBus });
+                if (i === 0 || i === 4) kick(t);
+                if (i === 2 || i === 6) noise(t, 0.09, { vol: 0.11, freq: 1800, type: 'bandpass', bus: musicBus });
+                noise(t, 0.03, { vol: i % 2 ? 0.05 : 0.03, freq: 7000, bus: musicBus });
+            }
+            function tick() {
+                if (!ctx) return;
+                const th = THEMES[themeIdx], d = 60 / th.bpm / 2;
+                while (nextT < ctx.currentTime + 0.3) {
+                    playStep(step, nextT, th, d);
+                    nextT += d;
+                    step = (step + 1) % 32;
+                }
+            }
+            function startMusic() {
+                if (!ctx || timer || !musicOn) return;
+                nextT = ctx.currentTime + 0.08; step = 0;
+                timer = setInterval(tick, 60);
+            }
+            function stopMusic() { clearInterval(timer); timer = null; }
+            function setTheme(i) {
+                if (i === themeIdx) return;
+                themeIdx = i; step = 0;
+                if (ctx) nextT = Math.max(nextT, ctx.currentTime + 0.05);
+            }
+            const themeForLevel = idx => (idx >= 4 ? 2 : idx >= 2 ? 1 : 0);
+
+            // ---------- sound effects ----------
+            const ready = () => unlocked && effectsOn && ctx && ctx.state !== 'closed';
+            const at = (delay = 0) => ctx.currentTime + delay;
+            const sfx = {
+                click() { if (!ready()) return; tone(880, at(), 0.05, { type: 'triangle', vol: 0.06 }); },
+                tick() { if (!ready()) return; tone(520, at(), 0.04, { type: 'square', vol: 0.03 }); },
+                move(dir) {
+                    if (!ready()) return;
+                    const t = at();
+                    noise(t, 0.14, { vol: 0.09, type: 'bandpass', freq: dir > 0 ? 500 : 2400, sweepTo: dir > 0 ? 2400 : 500 });
+                    tone(dir > 0 ? 330 : 440, t, 0.1, { type: 'triangle', vol: 0.08, slideTo: dir > 0 ? 520 : 300 });
+                },
+                lock(count, delay) {
+                    if (!ready()) return;
+                    const scale = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96, 98, 100, 103, 105, 108];
+                    const m = scale[(Math.max(1, count) - 1) % scale.length];
+                    const t = at(delay);
+                    tone(N(m), t, 0.24, { type: 'sine', vol: 0.15 });
+                    tone(N(m + 12), t, 0.16, { type: 'sine', vol: 0.05 });
+                },
+                wrong() {
+                    if (!ready()) return;
+                    const t = at();
+                    tone(330, t, 0.16, { type: 'triangle', vol: 0.12, slideTo: 260 });
+                    tone(247, t + 0.14, 0.24, { type: 'triangle', vol: 0.12, slideTo: 196 });
+                },
+                level() {
+                    if (!ready()) return;
+                    [60, 64, 67, 72].forEach((m, k) => tone(N(m + 12), at(k * 0.07), 0.14, { type: 'square', vol: 0.07 }));
+                },
+                star(k) {
+                    if (!ready()) return;
+                    const t = at();
+                    tone(N(84 + k * 4), t, 0.3, { type: 'sine', vol: 0.15 });
+                    tone(N(96 + k * 4), t, 0.2, { type: 'sine', vol: 0.05 });
+                },
+                win() {
+                    if (!ready()) return;
+                    const t = at();
+                    [[72, 0], [76, 0.12], [79, 0.24], [84, 0.36]].forEach(([m, o]) => {
+                        tone(N(m), t + o, 0.22, { type: 'square', vol: 0.09 });
+                        tone(N(m - 12), t + o, 0.22, { type: 'triangle', vol: 0.1 });
+                    });
+                    [72, 76, 79, 84].forEach(m => tone(N(m), t + 0.56, 0.95, { type: 'square', vol: 0.055 }));
+                    tone(N(48), t + 0.56, 0.95, { type: 'triangle', vol: 0.18 });
+                    for (let k = 0; k < 8; k++) tone(N(96 + (k % 4) * 2 + Math.floor(k / 4) * 3), t + 0.7 + k * 0.08, 0.16, { type: 'sine', vol: 0.04 });
+                },
+                cpuDone() {
+                    if (!ready()) return;
+                    [76, 79, 84].forEach((m, k) => tone(N(m), at(k * 0.1), 0.2, { type: 'triangle', vol: 0.1 }));
+                }
+            };
+
+            // ---------- voice (uses the browser's built-in speech; no downloads) ----------
+            const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+            let lastSpeak = 0, lastPraise = 0, currentUtterance = null, chosenVoice = null;
+
+            const VOICE_RATE = 0.95, VOICE_PITCH = 1.05; // natural pitch/pace = much clearer than a high "cartoon" pitch
+            const savedVoice = () => { try { return localStorage.getItem('shiftlock.voiceName') || ''; } catch (e) { return ''; } };
+            function rankVoice(v) {
+                const n = v.name;
+                let score = 0;
+                if (/natural|neural|online|premium|enhanced/i.test(n)) score += 100;
+                if (/google/i.test(n)) score += 60;
+                if (/samantha|ava|allison|karen|moira|serena|daniel|aria|jenny|guy|libby|sonia|zira/i.test(n)) score += 50;
+                if (/^en-US/i.test(v.lang)) score += 10; else if (/^en-(GB|AU|IN|CA)/i.test(v.lang)) score += 6;
+                if (/compact|espeak|robot|novelty|whisper|zarvox|trinoids|bells|organ|cellos|boing|bubbles|bad news|good news|albert|fred|junior|ralph|kathy/i.test(n)) score -= 200;
+                return score;
+            }
+            const englishVoices = () => (canSpeak ? speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)) : []);
+            function findVoice() {
+                if (chosenVoice || !canSpeak) return chosenVoice;
+                const voices = englishVoices();
+                const wanted = savedVoice();
+                chosenVoice = (wanted && voices.find(v => v.name === wanted))
+                    || voices.slice().sort((x, y) => rankVoice(y) - rankVoice(x))[0] || null;
+                return chosenVoice;
+            }
+            let onVoicesReady = () => {};
+            if (canSpeak) {
+                try { speechSynthesis.addEventListener('voiceschanged', () => { chosenVoice = null; findVoice(); onVoicesReady(); }); } catch (e) { /* ignore */ }
+            }
+            function speak(text, opts = {}) {
+                if (!canSpeak || !voiceOn || !unlocked) return;
+                const now = performance.now();
+                if (!opts.force && now - lastSpeak < 2500) return;
+                lastSpeak = now;
+                try {
+                    speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.lang = 'en-US';
+                    u.rate = opts.rate || VOICE_RATE;
+                    u.pitch = opts.pitch || VOICE_PITCH;
+                    u.volume = 1;
+                    const v = findVoice();
+                    if (v) u.voice = v;
+                    currentUtterance = u;
+                    u.onstart = () => { if (currentUtterance === u) setDuck(0.3); };
+                    u.onend = u.onerror = () => { if (currentUtterance === u) setDuck(1); };
+                    speechSynthesis.speak(u);
+                } catch (e) { /* ignore */ }
+            }
+
+            // ---------- win celebration: confetti + tile wave + banner with stars ----------
+            let celebTimers = [], stopConfetti = null, bannerEl = null;
+
+            function dismissCelebration() {
+                celebTimers.forEach(clearTimeout); celebTimers = [];
+                if (stopConfetti) { stopConfetti(); stopConfetti = null; }
+                if (bannerEl) { bannerEl.remove(); bannerEl = null; }
+            }
+            const later = (fn, ms) => celebTimers.push(setTimeout(fn, ms));
+
+            function launchConfetti() {
+                const canvas = document.createElement('canvas');
+                canvas.className = 'sl-confetti';
+                canvas.setAttribute('aria-hidden', 'true');
+                document.body.append(canvas);
+                const dpr = Math.min(2, window.devicePixelRatio || 1);
+                const W = canvas.width = Math.floor(innerWidth * dpr);
+                const H = canvas.height = Math.floor(innerHeight * dpr);
+                const g = canvas.getContext('2d');
+                const colors = ['#a94f35', '#3b8291', '#bb8a38', '#786695', '#2f866e', '#f2bb65', '#fffdf8'];
+                const parts = [];
+                function burst(x, y, count, angle, spread) {
+                    for (let k = 0; k < count; k++) {
+                        const a = angle + (Math.random() - 0.5) * spread;
+                        const speed = (9 + Math.random() * 12) * dpr;
+                        parts.push({
+                            x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            w: (6 + Math.random() * 7) * dpr, h: (4 + Math.random() * 6) * dpr,
+                            rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.4,
+                            color: pick(colors), round: Math.random() < 0.25
+                        });
+                    }
+                }
+                burst(0, H, 70, -Math.PI / 3, 0.9);
+                burst(W, H, 70, -2 * Math.PI / 3, 0.9);
+                let rainUntil = performance.now() + 1500, last = performance.now(), start = last, raf = 0, done = false;
+                function frame(now) {
+                    if (done) return;
+                    const dt = Math.min(2, (now - last) / 16.67); last = now;
+                    if (now < rainUntil) {
+                        for (let k = 0; k < 2; k++) parts.push({
+                            x: Math.random() * W, y: -10 * dpr, vx: (Math.random() - 0.5) * 3 * dpr, vy: (2 + Math.random() * 3) * dpr,
+                            w: (6 + Math.random() * 6) * dpr, h: (4 + Math.random() * 5) * dpr,
+                            rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.3, color: pick(colors), round: Math.random() < 0.2
+                        });
+                    }
+                    g.clearRect(0, 0, W, H);
+                    const fade = Math.max(0, Math.min(1, (4200 - (now - start)) / 700));
+                    for (let k = parts.length - 1; k >= 0; k--) {
+                        const p = parts[k];
+                        p.vy += 0.38 * dpr * dt; p.vx *= Math.pow(0.985, dt);
+                        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+                        if (p.y > H + 40) { parts.splice(k, 1); continue; }
+                        g.save();
+                        g.globalAlpha = fade;
+                        g.translate(p.x, p.y); g.rotate(p.rot);
+                        g.fillStyle = p.color;
+                        if (p.round) { g.beginPath(); g.arc(0, 0, p.h / 1.6, 0, 6.28); g.fill(); }
+                        else g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                        g.restore();
+                    }
+                    if (now - start > 4300 || (!parts.length && now > rainUntil)) { stop(); return; }
+                    raf = requestAnimationFrame(frame);
+                }
+                function stop() { done = true; cancelAnimationFrame(raf); canvas.remove(); }
+                raf = requestAnimationFrame(frame);
+                return stop;
+            }
+
+            function waveTiles() {
+                const size = boardSize;
+                Array.from(boardElement.children).forEach((tile, i) => {
+                    const row = Math.floor(i / size), col = i % size;
+                    tile.animate(
+                        [{ translate: '0 0', scale: 1 }, { translate: '0 -14px', scale: 1.1, offset: 0.4 }, { translate: '0 0', scale: 1 }],
+                        { duration: 560, delay: (row + col) * 80, easing: 'ease-in-out' }
+                    );
+                });
+            }
+
+            const WIN_LINES = ['Awesome! You cracked the vault!', 'Yay! You did it!', 'Boom! Vault restored!', "You're a puzzle champion!", 'Level complete! Great job!'];
+            const GREAT_LINES = ['Wow! You beat the target! Super star!', 'Perfect! Target cleared!', 'Incredible! You are a vault master!'];
+            const PROOF_LINES = ["Genius! You proved it's impossible!", 'Whoa, you spotted the glitch! Brilliant!'];
+
+            function celebrate(kind) {
+                dismissCelebration();
+                const level = activeLevel(), par = level.par, moves = moveCount;
+                let stars = 3, title = 'Vault Restored!', kicker = 'LEVEL COMPLETE', sub;
+                if (kind === 'proof') {
+                    title = 'Glitch Found!'; kicker = 'PUZZLE SOLVED';
+                    sub = 'Proof complete: that board can never be solved.';
+                } else if (par !== null && par !== undefined) {
+                    stars = moves <= par ? 3 : moves <= par + Math.ceil(par / 2) ? 2 : 1;
+                    sub = `Solved in ${moves} moves` + (moves <= par ? ' · Target cleared!' : ` · Target ≤ ${par}`);
+                } else {
+                    sub = `Solved in ${moves} moves`;
+                }
+
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'sl-win';
+                bannerEl.setAttribute('aria-hidden', 'true');
+                const card = document.createElement('div');
+                card.className = 'sl-win-card';
+                const k = document.createElement('div'); k.className = 'sl-win-kicker'; k.textContent = kicker;
+                const h = document.createElement('div'); h.className = 'sl-win-title'; h.textContent = title;
+                const row = document.createElement('div'); row.className = 'sl-stars';
+                const starEls = [0, 1, 2].map(n => {
+                    const s = document.createElement('span');
+                    s.className = 'sl-star' + (n < stars ? ' on' : '');
+                    s.textContent = '★';
+                    row.append(s);
+                    return s;
+                });
+                const sb = document.createElement('div'); sb.className = 'sl-win-sub'; sb.textContent = sub;
+                card.append(k, h, row, sb);
+                bannerEl.append(card);
+                document.body.append(bannerEl);
+
+                const calm = reducedMotion();
+                setDuck(0.25, 3200);
+                sfx.win();
+                if (!calm) {
+                    stopConfetti = launchConfetti();
+                    later(waveTiles, 250);
+                }
+                starEls.forEach((s, n) => later(() => {
+                    s.classList.add('show');
+                    if (n < stars) sfx.star(n);
+                }, calm ? 0 : 520 + n * 360));
+                later(() => {
+                    const lines = kind === 'proof' ? PROOF_LINES : stars === 3 && par ? GREAT_LINES : WIN_LINES;
+                    let line = pick(lines);
+                    if (kind !== 'proof' && !customLevel && currentLevelIndex === levels.length - 1) line = 'You finished every puzzle! You are a legend!';
+                    speak(line, { force: true });
+                }, 750);
+                later(() => { if (bannerEl) bannerEl.classList.add('leaving'); }, 4300);
+                later(dismissCelebration, 4700);
+            }
+
+            // ---------- hooks: wrap existing functions, original always runs first ----------
+            function wrap(name, before, after) {
+                const original = window[name];
+                if (typeof original !== 'function') return;
+                window[name] = function (...args) {
+                    let state = null;
+                    try { if (before) state = before(args); } catch (e) { /* ignore */ }
+                    const result = original.apply(this, args);
+                    try { if (after) after(state, args, result); } catch (e) { /* ignore */ }
+                    return result;
+                };
+            }
+            const correctSet = () => new Set(board.map((v, p) => (v === p ? v : -1)).filter(v => v >= 0));
+
+            wrap('applyShift',
+                () => ({ moves: moveCount, correct: correctSet() }),
+                (state, args) => {
+                    const o = args[3] || {};
+                    if (o.setup || moveCount === state.moves) return;
+                    if (o.auto) { sfx.tick(); return; }
+                    sfx.move(args[2]);
+                    if (solved) return; // the win celebration takes over
+                    const now = correctSet();
+                    const fresh = Array.from(now).filter(v => !state.correct.has(v));
+                    if (!fresh.length) return;
+                    sfx.lock(now.size, 0.12);
+                    if (!reducedMotion()) {
+                        fresh.forEach(v => {
+                            const tile = boardElement.querySelector(`[data-value="${v}"]`);
+                            if (tile) tile.animate([{ scale: 1 }, { scale: 1.18 }, { scale: 1 }], { duration: 380, delay: 140, easing: 'ease-out' });
+                        });
+                    }
+                    const t = performance.now();
+                    if (fresh.length >= 2 && t - lastPraise > 6000) {
+                        lastPraise = t;
+                        speak(pick(['Nice one!', 'Great move!', 'Smart!', 'Yes! Keep going!']));
+                    }
+                });
+
+            wrap('checkForWin',
+                () => solved,
+                wasSolved => { if (!wasSolved && solved) celebrate('solve'); });
+
+            // These buttons keep direct references to the original handlers, so listen to the
+            // clicks instead: capture phase = just before the game handles it, bubble = just after.
+            let impossibleBefore = null;
+            document.addEventListener('click', event => {
+                if (!event.target.closest) return;
+                if (event.target.closest('#impossibleButton')) {
+                    impossibleBefore = { was: solved, text: messageElement.textContent };
+                } else if (event.target.closest('#resetButton, #undoButton')) {
+                    dismissCelebration();
+                }
+            }, true);
+            document.addEventListener('click', event => {
+                if (!impossibleBefore || !event.target.closest || !event.target.closest('#impossibleButton')) return;
+                const state = impossibleBefore;
+                impossibleBefore = null;
+                try {
+                    if (!state.was && solved) { celebrate('proof'); return; }
+                    if (messageElement.textContent !== state.text && messageElement.classList.contains('error')) {
+                        sfx.wrong();
+                        speak('Not quite! This one can be solved.', { force: true });
+                    }
+                } catch (e) { /* ignore */ }
+            });
+
+            wrap('loadLevel', null, (state, args) => {
+                dismissCelebration();
+                const index = args[0], level = levels[index];
+                setTheme(themeForLevel(index));
+                if (!unlocked || !level) return;
+                sfx.level();
+                speak(level.glitch ? 'Signal lost! Solve it, or prove it is impossible!' : `Level ${index + 1}. ${level.title}. Let's go!`, { force: true });
+            });
+
+            wrap('selectSize', () => { dismissCelebration(); }, null);
+
+            wrap('seekTimeline',
+                () => (timeline ? timeline.index : null),
+                prev => {
+                    if (prev === null || !timeline) return;
+                    const end = timeline.moves.length;
+                    if (timeline.index === end && prev < end) sfx.cpuDone();
+                    else if (timeline.index - prev === 1) sfx.tick();
+                });
+
+            // ---------- Lockie the vault keeper: explains the rules when "How to play" opens ----------
+            (function setupGuide() {
+                const rulesModalEl = document.querySelector('#rulesModal');
+                const modalBox = rulesModalEl && rulesModalEl.querySelector('.modal');
+                const header = modalBox && modalBox.querySelector('.modal-header');
+                if (!header) return;
+
+                const MASCOT = '<svg class="sl-mascot" viewBox="0 0 100 112" aria-hidden="true">'
+                    + '<path d="M31 52V36a19 19 0 0 1 38 0v16" fill="none" stroke="#9da9a0" stroke-width="9" stroke-linecap="round"/>'
+                    + '<rect x="12" y="48" width="76" height="58" rx="15" fill="#203640"/>'
+                    + '<rect x="21" y="57" width="58" height="38" rx="11" fill="#fffdf8"/>'
+                    + '<g class="sl-eyes"><circle cx="39" cy="73" r="5.5" fill="#203640"/><circle cx="61" cy="73" r="5.5" fill="#203640"/>'
+                    + '<circle cx="40.8" cy="71.2" r="1.7" fill="#fffdf8"/><circle cx="62.8" cy="71.2" r="1.7" fill="#fffdf8"/></g>'
+                    + '<circle cx="30" cy="84" r="4" fill="#a94f35" opacity=".35"/><circle cx="70" cy="84" r="4" fill="#a94f35" opacity=".35"/>'
+                    + '<path class="sl-smile" d="M42 84q8 7 16 0" fill="none" stroke="#203640" stroke-width="3" stroke-linecap="round"/>'
+                    + '<ellipse class="sl-mouth-open" cx="50" cy="86" rx="7" ry="5" fill="#a94f35"/>'
+                    + '<circle cx="12" cy="82" r="7" fill="#bb8a38"/><circle class="sl-hand-r" cx="88" cy="82" r="7" fill="#bb8a38"/></svg>';
+
+                const guide = document.createElement('div');
+                guide.className = 'sl-guide';
+                guide.innerHTML = MASCOT
+                    + '<div class="sl-guide-body"><div class="sl-bubble">Hi! I\'m Lockie, the vault keeper.</div>'
+                    + '<div class="sl-guide-actions"><button type="button" class="button" id="slGuideToggle">Explain again</button></div></div>'
+                    + '<div class="sl-demo" aria-hidden="true"></div>';
+                header.after(guide);
+                const bubble = guide.querySelector('.sl-bubble');
+                const toggleBtn = guide.querySelector('#slGuideToggle');
+                const demoEl = guide.querySelector('.sl-demo');
+                const ruleItems = Array.from(modalBox.querySelectorAll('.rules-list li'));
+
+                // --- mini demo board (a tiny 3x3 that acts out each rule) ---
+                const cells = Array.from({ length: 9 }, () => { const cell = document.createElement('div'); demoEl.append(cell); return cell; });
+                let demoState = [0, 1, 2, 3, 4, 5, 6, 7, 8], demoHl = null, demoOk = 0, demoOdd = false, demoTimers = [];
+                function demoDraw() {
+                    cells.forEach((cell, i) => {
+                        const v = demoState[i];
+                        cell.textContent = String(v + 1);
+                        cell.dataset.family = String(Math.floor(v / 3));
+                        const hl = demoHl && (demoHl.kind === 'row' ? Math.floor(i / 3) === demoHl.index : i % 3 === demoHl.index);
+                        cell.className = 'sl-demo-cell' + (hl ? ' hl' : '') + (i < demoOk ? ' ok' : '') + (demoOdd && i >= 7 ? ' odd' : '');
+                    });
+                }
+                function demoShift(kind, index, dir) {
+                    const slots = [0, 1, 2].map(k => (kind === 'row' ? index * 3 + k : k * 3 + index));
+                    const old = slots.map(p => demoState[p]);
+                    slots.forEach((p, k) => { demoState[p] = old[(k - dir + 3) % 3]; });
+                    demoDraw();
+                    if (reducedMotion()) return;
+                    const size = cells[0].offsetWidth + 4;
+                    slots.forEach((p, k) => {
+                        let diff = (k - dir + 3) % 3 - k;
+                        if (Math.abs(diff) === 2) diff = -diff / 2; // wrap-around tile slides in from the edge
+                        const d = diff * size;
+                        cells[p].animate([{ translate: kind === 'row' ? `${d}px 0` : `0 ${d}px` }, { translate: '0 0' }],
+                            { duration: 480, easing: 'cubic-bezier(.22,.75,.2,1)' });
+                    });
+                }
+                function demoStop() { demoTimers.forEach(t => { clearInterval(t); clearTimeout(t); }); demoTimers = []; }
+                function demoShow(kind) {
+                    demoStop();
+                    demoState = [0, 1, 2, 3, 4, 5, 6, 7, 8]; demoHl = null; demoOk = 0; demoOdd = false;
+                    const loop = (fn, ms) => { fn(); demoTimers.push(setInterval(fn, ms)); };
+                    if (kind === 'row') { demoHl = { kind: 'row', index: 1 }; demoDraw(); loop(() => demoShift('row', 1, 1), 1500); }
+                    else if (kind === 'col') { demoHl = { kind: 'column', index: 1 }; demoDraw(); loop(() => demoShift('column', 1, 1), 1500); }
+                    else if (kind === 'goal') { loop(() => { demoOk = (demoOk + 1) % 12; demoDraw(); }, 260); }
+                    else if (kind === 'impossible') { demoState = [0, 1, 2, 3, 4, 5, 6, 8, 7]; demoOdd = true; demoDraw(); }
+                    else demoDraw();
+                }
+
+                // --- speaking, one line at a time ---
+                const STEPS = [
+                    { rule: -1, demo: 'idle', text: "Hi! I'm Lockie, the vault keeper. Let me show you how to play!" },
+                    { rule: 0, demo: 'row', text: "Rule one. Pick a whole row and slide it left or right. Tiles that fall off one edge pop out on the other side!" },
+                    { rule: 1, demo: 'col', text: "Rule two. You can also slide a whole column up or down. There is no empty square, so everything moves together." },
+                    { rule: 2, demo: 'goal', text: "Rule three. Put every numbered tile back where it belongs. Use fewer moves to beat the target and earn more stars!" },
+                    { rule: 3, demo: 'impossible', text: "Rule four. Careful! Some boards can never be solved. If you think you found one, press Declare impossible." },
+                    { rule: -1, demo: 'idle', text: "That's it! Tap the arrows or swipe the board. You've got this. Good luck!" }
+                ];
+                let guideToken = 0, guideResolve = null, talking = false;
+                const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+                function setTalking(on) {
+                    talking = on;
+                    guide.classList.toggle('talking', on);
+                    toggleBtn.textContent = on ? 'Stop' : 'Explain again';
+                }
+                function sayLine(text) {
+                    return new Promise(resolve => {
+                        let finished = false, safety = 0;
+                        const done = () => { if (finished) return; finished = true; clearTimeout(safety); if (guideResolve === done) guideResolve = null; resolve(); };
+                        guideResolve = done;
+                        if (canSpeak && voiceOn && unlocked) {
+                            try {
+                                const u = new SpeechSynthesisUtterance(text);
+                                u.lang = 'en-US'; u.rate = VOICE_RATE; u.pitch = VOICE_PITCH; u.volume = 1;
+                                const v = findVoice(); if (v) u.voice = v;
+                                currentUtterance = u; lastSpeak = performance.now();
+                                u.onstart = () => { if (currentUtterance === u) setDuck(0.3); };
+                                u.onend = u.onerror = () => { if (currentUtterance === u) setDuck(1); done(); };
+                                speechSynthesis.speak(u);
+                                safety = setTimeout(done, text.length * 110 + 4000); // in case the browser never reports "finished"
+                                return;
+                            } catch (e) { /* fall back to a silent, timed caption */ }
+                        }
+                        safety = setTimeout(done, Math.max(2200, text.length * 62));
+                    });
+                }
+                function showStep(step) {
+                    bubble.textContent = step.text;
+                    bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop');
+                    ruleItems.forEach((li, i) => li.classList.toggle('sl-rule-active', i === step.rule));
+                    demoShow(step.demo);
+                }
+                function clearGuideVisuals() {
+                    ruleItems.forEach(li => li.classList.remove('sl-rule-active'));
+                    demoShow('idle'); demoStop();
+                }
+                function stopGuide(message) {
+                    guideToken += 1;
+                    if (guideResolve) guideResolve();
+                    if (canSpeak) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+                    setDuck(1);
+                    clearGuideVisuals();
+                    setTalking(false);
+                    if (message) bubble.textContent = message;
+                }
+                async function runGuide() {
+                    stopGuide();
+                    const token = guideToken;
+                    setTalking(true);
+                    await sleep(250);
+                    for (const step of STEPS) {
+                        if (token !== guideToken) return;
+                        showStep(step);
+                        await sayLine(step.text);
+                        if (token !== guideToken) return;
+                        await sleep(500);
+                    }
+                    if (token !== guideToken) return;
+                    clearGuideVisuals();
+                    demoShow('idle'); demoStop();
+                    setTalking(false);
+                }
+
+                toggleBtn.addEventListener('click', () => {
+                    if (talking) stopGuide('Okay! Tap "Explain again" whenever you want me to go through the rules.');
+                    else runGuide();
+                });
+
+                // Start when the Rules window opens, stop when it closes (any way: button, Escape, backdrop).
+                let wasOpen = false;
+                new MutationObserver(() => {
+                    const open = rulesModalEl.classList.contains('open');
+                    if (open === wasOpen) return;
+                    wasOpen = open;
+                    if (open) setTimeout(() => { if (rulesModalEl.classList.contains('open')) runGuide(); }, 300);
+                    else stopGuide("Hi! I'm Lockie, the vault keeper.");
+                }).observe(rulesModalEl, { attributes: true, attributeFilter: ['class'] });
+                demoDraw();
+            })();
+
+            // ---------- sound toggles ----------
+            const ICONS = {
+                music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
+                effects: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
+                voice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01"/></svg>'
+            };
+            const group = document.createElement('div');
+            group.className = 'sl-audio';
+            const panel = document.createElement('div');
+            panel.className = 'sl-audio-panel';
+            panel.setAttribute('role', 'group');
+            panel.setAttribute('aria-label', 'Sound settings');
+            const mainBtn = document.createElement('button');
+            mainBtn.type = 'button';
+            mainBtn.className = 'sl-audio-main';
+            mainBtn.title = 'Sound settings';
+            mainBtn.setAttribute('aria-label', 'Sound settings');
+            mainBtn.setAttribute('aria-expanded', 'false');
+            mainBtn.innerHTML = ICONS.music;
+            group.append(panel, mainBtn);
+            function setMenu(open) {
+                group.classList.toggle('open', open);
+                mainBtn.setAttribute('aria-expanded', String(open));
+            }
+            mainBtn.addEventListener('click', () => setMenu(!group.classList.contains('open')));
+            document.addEventListener('pointerdown', e => { if (!group.contains(e.target)) setMenu(false); });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && group.classList.contains('open')) { setMenu(false); mainBtn.focus(); } });
+            function makeToggle(key, label, isOn, onChange) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'sl-audio-btn';
+                btn.title = label;
+                btn.setAttribute('aria-label', label);
+                btn.setAttribute('aria-pressed', String(isOn));
+                btn.innerHTML = ICONS[key] + '<span>' + label + '</span>';
+                btn.addEventListener('click', () => {
+                    const next = btn.getAttribute('aria-pressed') !== 'true';
+                    btn.setAttribute('aria-pressed', String(next));
+                    store.set(key, next);
+                    onChange(next);
+                });
+                panel.append(btn);
+                return btn;
+            }
+            makeToggle('music', 'Music', musicOn, on => {
+                musicOn = on;
+                applyMusicGain();
+                if (on) startMusic(); else stopMusic();
+            });
+            makeToggle('effects', 'Effects', effectsOn, on => {
+                effectsOn = on;
+                if (on) sfx.click();
+            });
+            if (canSpeak) {
+                makeToggle('voice', 'Voice', voiceOn, on => {
+                    voiceOn = on;
+                    if (on) speak('Voice on!', { force: true });
+                    else { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } setDuck(1); }
+                });
+            }
+            if (canSpeak && englishVoices !== undefined) {
+                const label = document.createElement('div');
+                label.className = 'sl-voice-label';
+                label.textContent = 'Voice style';
+                const select = document.createElement('select');
+                select.className = 'sl-voice-pick';
+                select.setAttribute('aria-label', 'Voice style');
+                function fillVoices() {
+                    const voices = englishVoices().sort((x, y) => rankVoice(y) - rankVoice(x));
+                    label.hidden = select.hidden = voices.length < 2;
+                    const wanted = savedVoice();
+                    select.innerHTML = '';
+                    const auto = document.createElement('option');
+                    auto.value = ''; auto.textContent = 'Auto (best voice)';
+                    select.append(auto);
+                    voices.forEach(v => {
+                        const o = document.createElement('option');
+                        o.value = v.name; o.textContent = v.name.replace(/^(Microsoft|Google)\s+/i, '') + ' (' + v.lang + ')';
+                        select.append(o);
+                    });
+                    select.value = voices.some(v => v.name === wanted) ? wanted : '';
+                }
+                select.addEventListener('change', () => {
+                    try { localStorage.setItem('shiftlock.voiceName', select.value); } catch (e) { /* ignore */ }
+                    chosenVoice = null;
+                    if (!voiceOn) return;
+                    speak("Hi! I'm Lockie. Can you hear me clearly?", { force: true });
+                });
+                onVoicesReady = fillVoices;
+                fillVoices();
+                panel.append(label, select);
+            }
+            document.body.append(group);
+
+            // Soft click on the game's regular buttons.
+            document.addEventListener('click', event => {
+                const target = event.target.closest && event.target.closest('.button, .speed-button, .timeline-step');
+                if (target && !target.disabled) sfx.click();
+            }, true);
+
+            // ---------- browsers only allow sound after a tap, so start on the first one ----------
+            function unlock(event) {
+                if (unlocked) return;
+                document.removeEventListener('pointerdown', unlock, true);
+                document.removeEventListener('keydown', unlock, true);
+                try {
+                    ensureAudio();
+                    if (ctx && ctx.state === 'suspended') ctx.resume();
+                    unlocked = true;
+                    startMusic();
+                    if (canSpeak) {
+                        // Prime speech on iOS, then say hi once.
+                        const prime = new SpeechSynthesisUtterance(' ');
+                        prime.volume = 0;
+                        speechSynthesis.speak(prime);
+                        const openedRules = event && event.target && event.target.closest && event.target.closest('#rulesButton');
+                        if (!openedRules) speak("Welcome to Shiftlock! Let's crack the vault!", { force: true });
+                    }
+                } catch (e) { /* the game still works without sound */ }
+            }
+            document.addEventListener('pointerdown', unlock, true);
+            document.addEventListener('keydown', unlock, true);
+
+            // Pause everything while the tab is hidden.
+            document.addEventListener('visibilitychange', () => {
+                if (!ctx) return;
+                if (document.hidden) {
+                    ctx.suspend();
+                    if (canSpeak) try { speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+                } else if (unlocked) {
+                    ctx.resume();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
